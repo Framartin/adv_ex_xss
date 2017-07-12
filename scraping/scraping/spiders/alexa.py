@@ -1,0 +1,11 @@
+# -*- coding: utf-8 -*-
+import scrapy
+
+
+class AlexaSpider(scrapy.Spider):
+    name = 'alexa'
+    allowed_domains = ['alexa.com']
+    start_urls = ['http://alexa.com/']
+
+    def parse(self, response):
+        pass
