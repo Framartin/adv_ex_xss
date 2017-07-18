@@ -42,10 +42,7 @@ class RandomWalkSpider(scrapy.Spider):
         'D_PROBABILITY': 1/7,
         'URL_SEEDS': ['https://google.com'], # list of URLs/domains to start, for example top500 websites
         'NOMBER_WALKS': 1, # nomber of URL to start with inside INITAL_SEEDS, ie. number of independant walks to perform at the same time
-        'FILES_STORE': 'html/randomsample/',
-        'EXTENSIONS': { # do not change
-            'scrapy.extensions.closespider.CloseSpider': 1,
-        }
+        'FILES_STORE': 'html/randomsample/'
     }
     start_urls = sample(custom_settings['URL_SEEDS'], custom_settings['NOMBER_WALKS']) # random sampling without replacement
     le = scrapy.linkextractors.LinkExtractor(canonicalize=True)  # linkextractor is smarter than xpath '//a/@href'
