@@ -2,29 +2,48 @@
 import scrapy
 from scraping.items import randomWalkItem
 from random import choice, randint, sample
-from scipy.stats import bernoulli
 from hashlib import sha1
 from urllib.parse import urldefrag
 
-# This spider implement the sampling method of the Web described in Monika R. Henzinger, Allan Heydon, Michael Mitzenmacher, Marc Najork, On near-uniform URL sampling, Computer Networks, Volume 33, Issue 1, 2000, Pages 295-308.
+# This spider implement the sampling method of the Web described in Monika R.
+# Henzinger, Allan Heydon, Michael Mitzenmacher, Marc Najork, On near-uniform 
+# URL sampling, Computer Networks, Volume 33, Issue 1, 2000, Pages 295-308.
+
 # This is a random walk method with random jump. This is implemented as follows:
-# 1. Randomly sample NOMBER_SELECTED_SEEDS domains/URL of URL_SEEDS without replacement
+# 1. Randomly sample NOMBER_SELECTED_SEEDS domains/URL of URL_SEEDS without
+#    replacement
 # 2. For each page:
-#     a. make sure that this is an html page (using https://doc.scrapy.org/en/latest/topics/request-response.html#htmlresponse-objects). If not select a new domain or a previously downloaded page and go to 2.
-#     b. with probability d continue, with 1-d randomly select a new domain or a previously downloaded page and go to 2.
-#     c. save the page
-#     d. parse all the links (using scrapy.linkextractors, for example to not select ftp:// links)
-#     e. randomly sample 1 link. If there is no link, select a new domain or a previously downloaded page and go to 2.
-#     f. follow this link and go to 2.
+#   a. make sure that this is an html page (using
+#      https://doc.scrapy.org/en/latest/topics/request-response.html#htmlresponse-objects).
+#      If not, select a new domain or a previously downloaded page and go to 2.
+#   b. with probability d continue, with 1-d randomly select a new domain or
+#      a previously downloaded page and go to 2.
+#   c. save the page
+#   d. parse all the links (using scrapy.linkextractors, for example to not 
+#      select ftp:// links)
+#   e. randomly sample 1 link. If there is no link, select a new domain or a 
+#      previously downloaded page and go to 2.
+#   f. follow this link and go to 2.
 # 3. Stop when we have saved CLOSESPIDER_ITEMCOUNT pages
 
 # Becareful:
-# 1. You have to filter out dupliacted HTML pages after crawling. Even if the spider strips out anchors in the URLs. Some URLs lead to the same page content (eg. parameters used for tracking).
-# 2. Note that the URL are canonicalized in order to removed duplicated links (eg. links to the same page having different fragments: foo#1, foo#2): http://w3lib.readthedocs.io/en/latest/w3lib.html#w3lib.url.canonicalize_url
-# 3. To fully implement the paper cited below, you have to compute the pageRank of each page and include it in the final sample with a probability proportional to the reverse of the page’s rank. THIS IS NOT DONE BY THIS SCRIPT.
-
-# TODO "Scrapy filters out duplicated requests to URLs already visited, avoiding the problem of hitting servers too much because of a programming mistake" https://doc.scrapy.org/en/latest/intro/tutorial.html?highlight=duplicated
-# TODO disable dupluacted request instead of dont_filter argument
+# 1. You have to filter out duplicated HTML pages after crawling. Even if the
+# spider strips out anchors in the URLs. Some URLs lead to the same page content
+# (eg. parameters used for tracking).
+# 2. Note that the URLs are canonicalized in order to removed duplicated links 
+# (eg. links to the same page having different fragments: foo#1, foo#2).
+# See http://w3lib.readthedocs.io/en/latest/w3lib.html#w3lib.url.canonicalize_url
+# 3. To fully implement the paper cited below, you have to compute the pageRank
+# of each page and include it in the final sample with a probability proportional
+# to the reverse of the page’s rank. THIS IS NOT DONE BY THIS SCRIPT.
+# 4. In order for the random walk method to work, we have to disable the 
+# filtering of duplicated requests. This means that the spider can be trapped in
+# a loop. But thanks to the random jumps, the walk will exit it after some time.
+# Then, you should avoid setting D_PROBABILITY to 0, and note that the spider 
+# may be using a lot of server ressources until the loop is existed. You can
+# configure DOWNLOAD_DELAY to avoid that.
+# See: https://doc.scrapy.org/en/latest/intro/tutorial.html?highlight=duplicated
+# And: https://doc.scrapy.org/en/latest/topics/settings.html#dupefilter-class
 
 def random_jump_url(URL_SEEDS, visited_urls):
     """Randomly choose one element between the 2 lists.
@@ -55,10 +74,11 @@ class RandomWalkSpider(scrapy.Spider):
             # Use dont_filter=True on the request: don't filter dupliactes
             next_url = random_jump_url(self.settings.get('URL_SEEDS'), self.visited_urls)
             self.logger.debug('Not an HTML response. Random jump. %s' % response.url)
-            yield response.follow(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)
+            yield response.follow(next_url, callback=self.parse, 
+                errback=self.errback_httpbin, dont_filter=True)
         else:
             d = self.settings.getfloat('D_PROBABILITY')
-            random_jump = bernoulli.rvs(d)
+            random_jump = choice([0,1])
             if random_jump == 1:
                 next_url = random_jump_url(self.settings.get('URL_SEEDS'), self.visited_urls)
                 self.logger.debug('Random jump from %s to %s' % (response.url, next_url))
@@ -86,10 +106,7 @@ class RandomWalkSpider(scrapy.Spider):
                 else:
                     next_url = choice(urls)
                     self.logger.debug('Following one link of: %s' % response.url)
-                    yield response.follow(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)
-#                if hasattr(item, 'url'):
-#                    yield item
-               
+                    yield response.follow(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)               
 
     def errback_httpbin(self, failure):
         # random jump in case of failure (including HTTP, DNSm and TimeOut errors)
