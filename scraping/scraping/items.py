@@ -20,3 +20,7 @@ class xssedItem(scrapy.Item):
     url = scrapy.Field()
     file_urls = scrapy.Field() # for FilesPipeline
     files = scrapy.Field() # for FilesPipeline
+
+class randomWalkItem(scrapy.Item):
+    url = scrapy.Field()
+    file_path = scrapy.Field()

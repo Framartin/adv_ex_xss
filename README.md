@@ -16,7 +16,7 @@ pip install -r requirements.txt
 ```
 cd scraping
 scrapy crawl xssed -o xssed.json --logfile log_xssed.txt --loglevel INFO
-scrapy crawl alexa -o alexa.json --logfile log_alexa.txt --loglevel INFO
+scrapy crawl randomwalk -o randomwalk.json --logfile log_randomwalk.txt --loglevel INFO
 ```
 
 
