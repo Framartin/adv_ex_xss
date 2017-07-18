@@ -8,6 +8,9 @@ class XssedSpider(scrapy.Spider):
     name = 'xssed'
     allowed_domains = ['xssed.com']
     start_urls = ['http://www.xssed.com/archive']
+    custom_settings = { # overrides settings.py option to use a dedicated folder
+        'FILES_STORE': 'html/xssed/',
+    }
 
     def parse(self, response):
         #response.xpath("//th[@id='tableborder']/table[1]/tr[not(@id='legends')]").extract()
