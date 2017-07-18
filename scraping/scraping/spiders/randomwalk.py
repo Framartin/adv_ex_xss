@@ -41,10 +41,13 @@ class RandomWalkSpider(scrapy.Spider):
         'CLOSESPIDER_ITEMCOUNT': 10,
         'D_PROBABILITY': 1/7,
         'URL_SEEDS': ['https://google.com'], # list of URLs/domains to start, for example top500 websites
-        'NOMBER_SELECTED_SEEDS': 1, # nomber of URL to start with inside INITAL_SEEDS 
-        'FILES_STORE': 'html/randomsample/'
+        'NOMBER_WALKS': 1, # nomber of URL to start with inside INITAL_SEEDS, ie. number of independant walks to perform at the same time
+        'FILES_STORE': 'html/randomsample/',
+        'EXTENSIONS': { # do not change
+            'scrapy.extensions.closespider.CloseSpider': 1,
+        }
     }
-    start_urls = sample(custom_settings['URL_SEEDS'], custom_settings['NOMBER_SELECTED_SEEDS']) # random sampling without replacement
+    start_urls = sample(custom_settings['URL_SEEDS'], custom_settings['NOMBER_WALKS']) # random sampling without replacement
     le = scrapy.linkextractors.LinkExtractor(canonicalize=True)  # linkextractor is smarter than xpath '//a/@href'
     visited_urls = [] # stored the visited URLs
 
@@ -55,34 +58,40 @@ class RandomWalkSpider(scrapy.Spider):
             # Use dont_filter=True on the request: don't filter dupliactes
             next_url = random_jump_url(self.settings.get('URL_SEEDS'), self.visited_urls)
             self.logger.debug('Not an HTML response. Random jump. %s' % response.url)
-            return response.follow(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)
-        d = self.settings.getfloat('D_PROBABILITY')
-        random_jump = bernoulli.rvs(d)
-        item = randomWalkItem()
-        if random_jump == 0:
-            if response.url not in self.visited_urls:
-                # save file
-                folder = self.settings.get('FILES_STORE')
-                filename = sha1(response.url.encode()).hexdigest()
-                with open(folder+filename, 'wb') as f:
-                    f.write(response.body)
-                self.logger.debug('Saved file %s' % filename)
-                self.visited_urls.append(response.url)
-                item['url'] = response.url
-                item['file_path'] = folder+filename
-            urls = self.le.extract_links(response)
-            urls = [link.url for link in urls if link.url != response.url] # remove links to the same page (used a lot for links to anchors)
-            if len(urls) == 0:
-                # random jump because the nade has not outlink
-                self.logger.debug('No link to follow. Random jump: %s' % response.url)
+            yield response.follow(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)
+        else:
+            d = self.settings.getfloat('D_PROBABILITY')
+            random_jump = bernoulli.rvs(d)
+            if random_jump == 1:
                 next_url = random_jump_url(self.settings.get('URL_SEEDS'), self.visited_urls)
-                return response.follow(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)
+                self.logger.debug('Random jump from %s to %s' % (response.url, next_url))
+                yield scrapy.Request(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)
             else:
-                next_url = choice(urls)
-                self.logger.debug('Following one link of: %s' % response.url)
-                yield response.follow(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)
-            if hasattr(item, 'url'):
-                yield item
+                if response.url not in self.visited_urls:
+                    # save file
+                    folder = self.settings.get('FILES_STORE')
+                    filename = sha1(response.url.encode()).hexdigest()
+                    with open(folder+filename, 'wb') as f:
+                        f.write(response.body)
+                    self.logger.debug('Saved file %s' % filename)
+                    self.visited_urls.append(response.url)
+                    item = randomWalkItem()
+                    item['url'] = response.url
+                    item['file_path'] = folder+filename
+                    yield item
+                urls = self.le.extract_links(response)
+                urls = [link.url for link in urls if link.url != response.url] # remove links to the same page (used a lot for links to anchors)
+                if len(urls) == 0:
+                    # random jump because the nade has not outlink
+                    self.logger.debug('No link to follow. Random jump: %s' % response.url)
+                    next_url = random_jump_url(self.settings.get('URL_SEEDS'), self.visited_urls)
+                    yield scrapy.Request(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)
+                else:
+                    next_url = choice(urls)
+                    self.logger.debug('Following one link of: %s' % response.url)
+                    yield response.follow(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)
+#                if hasattr(item, 'url'):
+#                    yield item
                
 
     def errback_httpbin(self, failure):
@@ -90,5 +99,5 @@ class RandomWalkSpider(scrapy.Spider):
         self.logger.error(repr(failure))
         next_url = random_jump_url(self.settings.get('URL_SEEDS'), self.visited_urls)
         self.logger.debug('HTTP error. Random jump to: %s' % next_url)
-        return self.follow(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)
+        return scrapy.Request(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)
 
