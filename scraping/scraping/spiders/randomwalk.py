@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import scrapy
+import csv
 from scraping.items import randomWalkItem
 from random import choice, randint, sample
 from hashlib import sha1
@@ -45,6 +46,18 @@ from urllib.parse import urldefrag
 # See: https://doc.scrapy.org/en/latest/intro/tutorial.html?highlight=duplicated
 # And: https://doc.scrapy.org/en/latest/topics/settings.html#dupefilter-class
 
+def import_seeds(URL_SEEDS_LIST, URL_SEEDS_CSV_PATH):
+    """ Input URL_SEEDS_LIST and URL_SEEDS_CSV_PATH parameters, output a list of
+     URLs to initiate the random walks"""
+    if isinstance(URL_SEEDS_LIST, list):
+        return URL_SEEDS_LIST
+    else:
+        with open(URL_SEEDS_CSV_PATH, 'r') as f:
+            reader = csv.reader(f)
+            seeds_list = list(reader)
+        seeds_list = ['http://'+i[1] for i in seeds_list]
+        return seeds_list
+
 def random_jump_url(URL_SEEDS, visited_urls):
     """Randomly choose one element between the 2 lists.
        For performance the 2 lists are not joined.   """
@@ -59,30 +72,42 @@ class RandomWalkSpider(scrapy.Spider):
     custom_settings = {
         'CLOSESPIDER_ITEMCOUNT': 10,
         'D_PROBABILITY': 1/7,
-        'URL_SEEDS': ['https://google.com'], # list of URLs/domains to start, for example top500 websites
-        'NOMBER_WALKS': 1, # nomber of URL to start with inside INITAL_SEEDS, ie. number of independant walks to perform at the same time
+        'URL_SEEDS_LIST': None, # list of URLs to start. If not a list, use 
+        # URL_SEEDS_CSV_PATH. Ex: ['https://google.com']
+        'URL_SEEDS_CSV_PATH': 'alexa/top-10000.csv', # (Only if URL_SEEDS_LIST
+        # is None) Path to a CSV file containing the *domains* to start, 
+        # in the format "1,google.com"
+        'NOMBER_WALKS': 1, # nomber of URL to start with inside INITAL_SEEDS, 
+        # ie. number of independant walks to perform at the same time
         'FILES_STORE': 'html/randomsample/'
     }
-    start_urls = sample(custom_settings['URL_SEEDS'], custom_settings['NOMBER_WALKS']) # random sampling without replacement
-    le = scrapy.linkextractors.LinkExtractor(canonicalize=True)  # linkextractor is smarter than xpath '//a/@href'
-    visited_urls = [] # stored the visited URLs
+    url_seeds = import_seeds(custom_settings['URL_SEEDS_LIST'], 
+        custom_settings['URL_SEEDS_CSV_PATH'])
+    start_urls = sample(url_seeds, custom_settings['NOMBER_WALKS'])
+        # random sampling without replacement of NOMBER_WALKS URLs from
+        # URL_SEEDS_LIST or URL_SEEDS_CSV_PATH
+    le = scrapy.linkextractors.LinkExtractor(canonicalize=True)
+    # linkextractor is smarter than xpath '//a/@href'
+    visited_urls = [] # stores the visited URLs
 
     def parse(self, response):
         if not isinstance(response, scrapy.http.HtmlResponse): # not a HTML page
-            # Choose at random an HTML page already visited or a start_urls (the initial seed)
-            # Don't save the page
-            # Use dont_filter=True on the request: don't filter dupliactes
-            next_url = random_jump_url(self.settings.get('URL_SEEDS'), self.visited_urls)
-            self.logger.debug('Not an HTML response. Random jump. %s' % response.url)
+            # Choose at random an HTML page already visited or a url_seeds (the 
+            # initial seeds). Don't save the page.
+            next_url = random_jump_url(self.url_seeds, self.visited_urls)
+            self.logger.debug('Not an HTML response. Random jump. %s' 
+                % response.url)
             yield response.follow(next_url, callback=self.parse, 
                 errback=self.errback_httpbin, dont_filter=True)
         else:
             d = self.settings.getfloat('D_PROBABILITY')
-            random_jump = choice([0,1])
-            if random_jump == 1:
-                next_url = random_jump_url(self.settings.get('URL_SEEDS'), self.visited_urls)
-                self.logger.debug('Random jump from %s to %s' % (response.url, next_url))
-                yield scrapy.Request(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)
+            random_jump = choice([0,1]) # Bernouilli random variable
+            if random_jump:
+                next_url = random_jump_url(self.url_seeds, self.visited_urls)
+                self.logger.debug('Random jump from %s to %s' 
+                    % (response.url, next_url))
+                yield scrapy.Request(next_url, callback=self.parse, 
+                    errback=self.errback_httpbin, dont_filter=True)
             else:
                 if response.url not in self.visited_urls:
                     # save file
@@ -97,21 +122,28 @@ class RandomWalkSpider(scrapy.Spider):
                     item['file_path'] = folder+filename
                     yield item
                 urls = self.le.extract_links(response)
-                urls = [link.url for link in urls if link.url != response.url] # remove links to the same page (used a lot for links to anchors)
+                urls = [link.url for link in urls if link.url != response.url] 
+                # remove links to the same page (used a lot for links to anchors)
                 if len(urls) == 0:
                     # random jump because the nade has not outlink
-                    self.logger.debug('No link to follow. Random jump: %s' % response.url)
-                    next_url = random_jump_url(self.settings.get('URL_SEEDS'), self.visited_urls)
-                    yield scrapy.Request(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)
+                    self.logger.debug('No link to follow. Random jump: %s' 
+                        % response.url)
+                    next_url = random_jump_url(self.url_seeds, 
+                        self.visited_urls)
+                    yield scrapy.Request(next_url, callback=self.parse, 
+                        errback=self.errback_httpbin, dont_filter=True)
                 else:
                     next_url = choice(urls)
-                    self.logger.debug('Following one link of: %s' % response.url)
-                    yield response.follow(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)               
+                    self.logger.debug('Following one link of: %s'
+                     % response.url)
+                    yield response.follow(next_url, callback=self.parse, 
+                        errback=self.errback_httpbin, dont_filter=True)               
 
     def errback_httpbin(self, failure):
-        # random jump in case of failure (including HTTP, DNSm and TimeOut errors)
+        # random jump in case of failure (including HTTP, DNSm and TimeOut 
+        # errors)
         self.logger.error(repr(failure))
-        next_url = random_jump_url(self.settings.get('URL_SEEDS'), self.visited_urls)
+        next_url = random_jump_url(self.url_seeds, self.visited_urls)
         self.logger.debug('HTTP error. Random jump to: %s' % next_url)
-        return scrapy.Request(next_url, callback=self.parse, errback=self.errback_httpbin, dont_filter=True)
-
+        return scrapy.Request(next_url, callback=self.parse, 
+            errback=self.errback_httpbin, dont_filter=True)
