@@ -18,8 +18,8 @@ class XssedSpider(scrapy.Spider):
         for page in list_pages:
             yield response.follow(page, self.parse_detail)
         next_page = response.xpath("//a[./text()='>']/@href").extract_first() # next page of the list
-        #if next_page is not None:
-        #    yield response.follow(next_page, self.parse)
+        if next_page is not None:
+            yield response.follow(next_page, self.parse)
 
     def parse_detail(self, response):
         item = xssedItem()
