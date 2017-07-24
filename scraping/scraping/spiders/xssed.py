@@ -10,6 +10,7 @@ class XssedSpider(scrapy.Spider):
     start_urls = ['http://www.xssed.com/archive']
     custom_settings = { # overrides settings.py option to use a dedicated folder
         'FILES_STORE': 'html/xssed/',
+        'METAREFRESH_ENABLED': False # disable redirection based on meta refresh: some XSS payloads includes it.
     }
 
     def parse(self, response):
@@ -44,7 +45,7 @@ class XssedSpider(scrapy.Spider):
         for i in item.keys():
             if i not in ["file_urls"]:
                 item[i] = item[i].strip()
-        if item['category'] != 'XSS':
+        if item['category'] not in ['XSS', 'Script Insertion']:
             self.logger.info('not saving this non-XSS item: %s (%s)', response.url, item['category']) # example: http://www.xssed.com/mirror/76616/
         else:
             yield item
