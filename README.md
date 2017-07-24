@@ -48,3 +48,11 @@ xargs -a ../duplicated_randomsample_files.txt rm -v # delete files
 cd ../..
 ```
 
+
+## Parsing HTML files to generate features
+
+```
+python3 generate_data.py
+ls -lh data.csv
+```
+
