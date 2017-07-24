@@ -45,5 +45,6 @@ class XssedSpider(scrapy.Spider):
             if i not in ["file_urls"]:
                 item[i] = item[i].strip()
         if item['category'] != 'XSS':
-            self.logger.info('Saving a non-XSS item: %s (%s)', response.url, item['category'])
-        yield item
+            self.logger.info('not saving this non-XSS item: %s (%s)', response.url, item['category']) # example: http://www.xssed.com/mirror/76616/
+        else:
+            yield item
