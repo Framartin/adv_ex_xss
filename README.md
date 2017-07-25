@@ -13,6 +13,10 @@ pip install -r requirements.txt
 
 ## Scraping Data
 
+Please edit `scraping/scraping/settings.py@19` to identify yourself.
+
+You can also disable cookies for performance reason by editing line 36.
+
 ### Getting the Alexa top sites list
 
 If the source file is not available anymore, use the `top-10000.csv` included in this repository. Data were generated the `2017-07-18 12:51:20.000000000 -0400`.
@@ -33,6 +37,20 @@ cd ..
 ```
 scrapy crawl xssed -o xssed.json --logfile log_xssed.txt --loglevel INFO
 scrapy crawl randomwalk -o randomwalk.json --logfile log_randomwalk.txt --loglevel INFO
+```
+
+### Remove oversized files
+
+Some files are just too big.
+
+```
+find html/ -size +50M -exec ls -lh {} \+
+```
+
+For example, `html/xssed/full/7aee06aa9087469b5766a8b8d27194a41e2e51c0` that weights 193Mio!
+
+```
+rm html/xssed/full/7aee06aa9087469b5766a8b8d27194a41e2e51c0
 ```
 
 ### Remove duplicated files
