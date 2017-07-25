@@ -80,7 +80,11 @@ class RandomWalkSpider(scrapy.Spider):
         'NOMBER_WALKS': 100, # nomber of URL to start with inside INITAL_SEEDS, 
         # ie. number of independant walks to perform at the same time
         'FILES_STORE': 'html/randomsample/',
-        'DUPEFILTER_CLASS': 'scrapy.dupefilters.BaseDupeFilter'
+        'DUPEFILTER_CLASS': 'scrapy.dupefilters.BaseDupeFilter', # do not modify
+        'CONCURRENT_REQUESTS': 50,
+        'REACTOR_THREADPOOL_MAXSIZE': 20,
+        'DOWNLOAD_TIMEOUT': 15,
+        'DOWNLOAD_MAXSIZE': 33554432 # do not download reponses bigger than 32MB 
     }
     url_seeds = import_seeds(custom_settings['URL_SEEDS_LIST'], 
         custom_settings['URL_SEEDS_CSV_PATH'])
