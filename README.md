@@ -1,5 +1,6 @@
 
-# Defeating ML-based XSS Classifier using Adversarial Examples
+# Defeating Machine Learning-based XSS Classifier using Adversarial Examples
+
 
 ## Installation 
 
@@ -19,15 +20,16 @@ You can also disable cookies for performance reason by editing line 36.
 
 ### Getting the Alexa top sites list
 
-If the source file is not available anymore, use the `top-10000.csv` included in this repository. Data were generated the `2017-07-18 12:51:20.000000000 -0400`.
+If the source file is not available anymore, use the `top-100000.csv` included in this repository. Data were generated the `2017-07-18 12:51:20.000000000 -0400`.
 
 ```
 cd scraping/alexa
 wget http://s3.amazonaws.com/alexa-static/top-1m.csv.zip && \
 unzip top-1m.csv.zip && \
-head -10000 top-1m.csv > top-10000.csv
+head -100000 top-1m.csv > top-100000.csv
 
 stat -c %y top-1m.csv # time of last modification of the top 1 million
+#2017-07-18 12:51:20.000000000 -0400
 rm top-1m.csv
 cd ..
 ```
@@ -36,6 +38,18 @@ cd ..
 
 ```
 scrapy crawl xssed -o xssed.json --logfile log_xssed.txt --loglevel INFO
+
+# number of malicious observations
+wc -l xssed.json # minus 2 for the first and last lines
+#38637 xssed.json
+```
+
+Edit the `custom_settings` at `scraping/scraping/spiders/randomwalk.py@72` before using the randomwalk spider. Among others settings, it's important to set `CLOSESPIDER_ITEMCOUNT` which defines the number of benign web pages to save. We recommend to scrape more benign data than malicious ones: 
+
+- to plan the deletion of duplicated pages
+- to perform a posterior (uniform) random sample
+
+```
 scrapy crawl randomwalk -o randomwalk.json --logfile log_randomwalk.txt --loglevel INFO
 ```
 
