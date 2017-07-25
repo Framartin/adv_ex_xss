@@ -70,14 +70,14 @@ def random_jump_url(URL_SEEDS, visited_urls):
 class RandomWalkSpider(scrapy.Spider):
     name = 'randomwalk'
     custom_settings = {
-        'CLOSESPIDER_ITEMCOUNT': 10,
-        'D_PROBABILITY': 1/7,
+        'CLOSESPIDER_ITEMCOUNT': 150000, # number of webpages to collect
+        'D_PROBABILITY': 1/5, # probability of a random jump
         'URL_SEEDS_LIST': None, # list of URLs to start. If not a list, use 
         # URL_SEEDS_CSV_PATH. Ex: ['https://google.com']
-        'URL_SEEDS_CSV_PATH': 'alexa/top-10000.csv', # (Only if URL_SEEDS_LIST
+        'URL_SEEDS_CSV_PATH': 'alexa/top-100000.csv', # (Only if URL_SEEDS_LIST
         # is None) Path to a CSV file containing the *domains* to start, 
         # in the format "1,google.com"
-        'NOMBER_WALKS': 1, # nomber of URL to start with inside INITAL_SEEDS, 
+        'NOMBER_WALKS': 100, # nomber of URL to start with inside INITAL_SEEDS, 
         # ie. number of independant walks to perform at the same time
         'FILES_STORE': 'html/randomsample/'
     }
