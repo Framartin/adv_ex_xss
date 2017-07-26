@@ -79,7 +79,7 @@ class RandomWalkSpider(scrapy.Spider):
         # in the format "1,google.com"
         'NOMBER_WALKS': 100, # nomber of URL to start with inside INITAL_SEEDS, 
         # ie. number of independant walks to perform at the same time
-        'FILES_STORE': 'html/randomsample/',
+        'FILES_STORE': 'html/randomsample/full/',
         'DUPEFILTER_CLASS': 'scrapy.dupefilters.BaseDupeFilter', # do not modify
         'CONCURRENT_REQUESTS': 50,
         'REACTOR_THREADPOOL_MAXSIZE': 20,

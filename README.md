@@ -73,12 +73,38 @@ rm html/xssed/full/7aee06aa9087469b5766a8b8d27194a41e2e51c0
 We need to filter duplicated HTML files download from the random walks. See `scraping/scraping/spiders/randomwalk.py` for more informations.
 
 ```
-cd html/randomsample/
+cd html/randomsample/full/
 fdupes -r . # see duplicated files by groups
 fdupes -rf . | grep -v '^$' > ../duplicated_randomsample_files.txt
 less ../duplicated_randomsample_files.txt # check files
 xargs -a ../duplicated_randomsample_files.txt rm -v # delete files
-cd ../..
+cd ../../..
+```
+
+### Sampling benign pages
+
+You can create a sample of the web pages scraped from the random walk: 
+
+1. You can choose to perform a Random Sample in which the probabilities of each observation is inversely proportional to its pagerank (see _Monika R. Henzinger, Allan Heydon, Michael Mitzenmacher, Marc Najork, On near-uniform  URL sampling, Computer Networks, Volume 33, Issue 1, 2000, Pages 295-308._). This is not implemented here (for simplicity and because the sample is small).
+2. Perform a Uniform Random Sample:
+
+```
+ls -1 html/xssed/full | wc -l # number of malicious observations
+#38627
+N=50000 # set the number of benign pages to keep
+
+cd html/randomsample
+
+mkdir subsample
+ls -1 full/ | python -c "import sys; import random; print(''.join(random.sample(sys.stdin.readlines(), int(sys.argv[1]))).rstrip())" $N | while read line; do cp "full/$line" subsample; done
+# adapted from https://stackoverflow.com/a/33509190
+```
+
+You can choose to backup all downloaded files, before removing all html pages not in the subsample.
+
+```
+# Be careful to be on the randomsample folder!
+rm -r full 
 ```
 
 
