@@ -5,7 +5,7 @@
 ## Installation 
 
 ```
-#sudo pip3 install virtualenv fdupes
+#sudo apt-get install python3-pip virtualenv fdupes
 virtualenv -p python3 venv
 . venv/bin/activate
 pip install -r requirements.txt
@@ -15,8 +15,6 @@ pip install -r requirements.txt
 ## Scraping Data
 
 Please edit `scraping/scraping/settings.py@19` to identify yourself.
-
-You can also disable cookies for performance reason by editing line 36.
 
 ### Getting the Alexa top sites list
 
@@ -29,7 +27,7 @@ unzip top-1m.csv.zip && \
 head -100000 top-1m.csv > top-100000.csv
 
 stat -c %y top-1m.csv # time of last modification of the top 1 million
-#2017-07-18 12:51:20.000000000 -0400
+#2017-07-25 12:52:54.000000000 +0000
 rm top-1m.csv
 cd ..
 ```
@@ -52,6 +50,9 @@ Edit the `custom_settings` at `scraping/scraping/spiders/randomwalk.py@72` befor
 ```
 scrapy crawl randomwalk -o randomwalk.json --logfile log_randomwalk.txt --loglevel INFO
 ```
+
+
+Note: if you encounter the error `OSError: [Errno 24] Too many open files:` in the log, try `ulimit -n 30000` (this modification only applies to the current session).
 
 ### Remove oversized files
 
