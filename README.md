@@ -14,6 +14,10 @@ pip install -r requirements.txt
 
 ## Scraping Data
 
+**Important:** If you want to skip this part, you can reuse the data published here: [xssed_data.7z](https://github.com/Framartin/adv_ex_xss/releases/download/v0.1.0/xssed_data.7z) and [randomwalk_subsample.7z](https://github.com/Framartin/adv_ex_xss/releases/download/v0.2.0/randomwalk_subsample.7z).
+
+### Configuration
+
 Please edit `scraping/scraping/settings.py@19` to identify yourself.
 
 ### Getting the Alexa top sites list
