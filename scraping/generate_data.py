@@ -7,11 +7,17 @@ randomwalk.json. It outputs data.csv.
 HTML files referenced on the json files that cannot be found will be discarted
 (because the random sample was subsampled and some duplicated or very large
 files were removed).
+
+TODO:
+- compile regex for performance
+- change the structure of the code for easier reuse for prediction (?)
+- verify that the HTML parser is resetted at the end of each file
+- move to a better XML parser?
 """ 
 
-import json, csv, re
+import json, csv, re, esprima
 from urllib.parse import unquote as urldecode
-from HTMLParser import HTMLParser
+from html.parser import HTMLParser
 
 def import_json(filename):
     with open(filename, 'r') as f:
@@ -27,8 +33,9 @@ class MyHTMLParser(HTMLParser):
     def __init__(self, 
             tags = ('script', 'iframe', 'meta', 'div'), # tags to count
             attrs = ('href', 'http-equiv', 'lowsrc'), # attributes to count
-            eventHandlers = () # eventHandlers to count. load it at call
+            eventHandlers = (), # eventHandlers to count. load it at call
         ):
+        HTMLParser.__init__(self)
         self.data = {}
         self.tags = tags
         self.attrs = attrs
@@ -42,6 +49,8 @@ class MyHTMLParser(HTMLParser):
         # Events Handlers
         for event in eventHandlers:
            self.data['html_event_' + event] = 0
+        # reference to JS file
+        self.data['js_file'] = False
         # Store JS strings for further processing
         self.javascript = [] # list of JS strings
         # JS will be extracted from <script> tag, event handlers, 
@@ -57,22 +66,121 @@ class MyHTMLParser(HTMLParser):
             if attr[0] in self.eventHandlers:
                 self.data['html_event_' + attr[0]] += 1
                 self.javascript.append(attr[1]) # javascript attached to the event
+            js_protocol = re.search(r'^\s*javascript:(.*)', attr[1], 
+                flags=(re.IGNORECASE|re.DOTALL))
+                # ignore case, white space, and new line (important)
+            if bool(js_protocol):
+                code = js_protocol.group(1)
+                # strip out "javascript:" to keep only the code
+                self.javascript.append(code) # javascript protocol
+
+        if tag == "script":
+            self.inScript = True # we are in a script tag
+            if 'src' in attrs:
+                # don't check file extension. JS can be called from any file
+                # extention
+                self.data['js_file'] = True
 
     def handle_data(self, data):
-        print "Encountered some data  :", data
+        if self.inScript:
+            self.javascript.append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "script":
+            self.inScript = False
+
+def node_generator(node):
+    """
+    Generator that takes an Esprima object or a Esprima node and outputs child
+    nodes.
+    """
+    # process
+    yield node
+    # contains other nodes
+    for i in node: # key if node is a dict, element if node is a list
+        if isinstance(i, list):
+            for subnode in i:
+                yield from node_generator(subnode)
+        elif isinstance(i, dict):
+            pass
+
+    # if hasattr(node, 'body'):
+    #     if isinstance(node.body, list):
+    #         # list of nodes
+    #     else:
+    #         yield from node_generator(node.body)
+
+def parse_javascript(string, 
+        domObjects = ('windows', 'location', 'document'),
+        properties = ('cookie', 'location', 'document'),
+        methods = ('write', 'getElementsByTagName', 'alert', 'eval', 
+            'fromCharCode')
+    ):
+    """ Parse a string representing JS code and return a dict containing 
+    features"""
+    data = {}
+    data['js_length'] = len(string)
+    # init 
+    for i in domObjects:
+        data['js_dom_'+i] = 0
+    for i in properties:
+        data['js_prop_'+i] = 0
+    for i in domObjects:
+        data['js_method_'+i] = 0
+    data['js_define_function'] = 0
+    data['js_string_max_length'] = None 
+    stringsList = []
+    functionsList = []
+    # JS parser ported from JS to Python.
+    # tolerant to continue if strict JS is not respected, see:
+    # http://esprima.readthedocs.io/en/4.0/syntactic-analysis.html#tolerant-mode
+    # for the definition of the tree, see:
+    # https://github.com/estree/estree/blob/master/es5.md
+    esprimaObject = esprima.parseScript(string, options={'tolerant':True, 
+        'tokens': True}) #.toDict()
+    parsedCode = esprimaObject.body
+    for node in node_generator(parsedCode):
+        if node.type in ['FunctionDeclaration', ]: # TODO: Function Declaration
+            data['js_define_function'] += 1
+        elif node.type in ['CallExpression',]: # Function or method scalls
+            functionsList.append(node.callee.name)
+    
+    # number of functions used
+    data['js_number_functions'] = len(set(functionsList)) # remove duplicates
+
+    tokens = esprimaObject.tokens
+    # TODO: switch to parseScript to detect dom, prop, and methods?
+    # But be careful to this case:
+    #    var test = alert;
+    #    test();
+    for token in tokens:
+        if token.type == 'Identifier':
+            if token.value in domObjects:
+                data['js_dom_'+token.value] += 1
+            elif token.value in properties:
+                data['js_prop_'+token.value] += 1
+            elif token.value in methods:
+                data['js_method_'+token.value] += 1
+        elif token.type == "string":
+            stringsList.append(tokens.value)
+    # max length of strings
+    data['js_string_max_length'] = max([len(i) for i in stringsList])
+    return data
 
 def parse_html(filename):
     """ Parses filename and returns a dict of features for future model uses"""
     try:
-        with open(filename, 'r'):
-            pass # TODO
+        with open(filename, 'r') as f:
+            html_data = f.read()
     except FileNotFoundError as e:
         #print("File not found. Skipping file: %s" % filename) # debug
         return None
     parser = MyHTMLParser()
-    parser.feed()#TODO
-    data = {}
-    data['html_length'] = len(string)
+    #data = {}
+    parser.feed(html_data)
+    #data = parser.data
+    #javascript = parser.javascript
+    #data['html_length'] = len(html_data)
     return data
 
 def parse_url(string):
