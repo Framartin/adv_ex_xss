@@ -1,3 +1,4 @@
 scrapy
-HTMLParser
+beautifulsoup4
+lxml
 esprima
