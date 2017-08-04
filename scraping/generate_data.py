@@ -131,9 +131,9 @@ def parse_javascript(string,
     for i in methods:
         data['js_method_'+i] = 0
     data['js_define_function'] = 0
-    data['js_string_max_length'] = None 
+    data['js_string_max_length'] = None
+    data['js_function_calls'] = 0 # number of function calls
     stringsList = []
-    functionsList = []
     # JS parser ported from JS to Python.
     # https://github.com/Kronuz/esprima-python
     # tolerant to continue if strict JS is not respected, see:
@@ -147,9 +147,7 @@ def parse_javascript(string,
         if node['type'] in ['FunctionDeclaration', ]: # TODO: Function Declaration
             data['js_define_function'] += 1
         elif node['type'] in ['CallExpression', ]: # function or method calls
-            functionsList.append(node['callee']['name'])
-    # number of functions used
-    data['js_number_functions'] = len(set(functionsList)) # remove duplicates
+            data['js_function_calls'] += 1
     ## Lexical Analysis
     tokens = esprimaObject['tokens']
     # TODO: switch to parseScript to detect dom, prop, and methods?
@@ -167,7 +165,8 @@ def parse_javascript(string,
         elif token['value'] == "string":
             stringsList.append(tokens['value'])
     # max length of strings
-    data['js_string_max_length'] = max([len(i) for i in stringsList])
+    if len(stringsList) > 0:
+        data['js_string_max_length'] = max([len(i) for i in stringsList])
     return data
 
 def js_protocol(string):
@@ -198,7 +197,7 @@ def parse_html(filename,
         with open(filename, 'r') as f:
             raw_html = f.read()
     except FileNotFoundError as e:
-        #print("File not found. Skipping file: %s" % filename) # debug
+        print("File not found. Skipping file: %s" % filename)
         return None
     soup = BeautifulSoup(raw_html, "lxml")
     ## Init variables
@@ -223,7 +222,7 @@ def parse_html(filename,
             # check is None, ie. <script> has a child node
             print('[INFO] Skipping a ill-formed <script> in file: %s', filename)
         else:
-            javascriptStrings.append(javascript) 
+            javascriptStrings.append(javascript)
     # 2. JS executed from javascript: links
     for tag in soup.find_all('a', attrs={'href':True}):
         javascript = js_protocol(tag['href'])
@@ -242,7 +241,7 @@ def parse_html(filename,
     for attr in attrs:
         data['html_attr_' + attr] = len(soup.find_all(attrs={attr: True}))
     ## count event handlers
-    for event in evantHandlers:
+    for event in eventHandlers:
         event_tags = soup.find_all(attrs={event: True})
         data['html_event_' + event] = len(event_tags)
         # 4. JS executed from EventHandlers
@@ -322,7 +321,7 @@ def main():
         feature_class = {'class': 1} # xss
         features_url = parse_url(page['url'])
         try:
-            features_html = parse_html(page['files'][0]['path'])
+            features_html = parse_html('html/xssed/'+page['files'][0]['path'])
         except IndexError:
             # no file downloaded
             # some mirrored pages are buggy, e.g 
