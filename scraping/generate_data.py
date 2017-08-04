@@ -194,7 +194,9 @@ def parse_html(filename,
             ):
     """ Parses filename and returns a dict of features for future model uses"""
     try:
-        with open(filename, 'r') as f:
+        with open(filename, 'r', errors='backslashreplace') as f:
+            # avoid UnicodeDecodeError, e.g with file: 
+            # xssed/full/6327ecf75cb4392df52394c2c9b01e1321b0310e
             raw_html = f.read()
     except FileNotFoundError as e:
         print("File not found. Skipping file: %s" % filename)
