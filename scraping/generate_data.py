@@ -116,7 +116,8 @@ def parse_javascript(string,
         domObjects = ('windows', 'location', 'document'),
         properties = ('cookie', 'location', 'document'),
         methods = ('write', 'getElementsByTagName', 'alert', 'eval', 
-            'fromCharCode')
+            'fromCharCode'),
+        filename = None
     ):
     """
     Parse a string representing JS code and return a dict containing 
@@ -141,11 +142,17 @@ def parse_javascript(string,
     # http://esprima.readthedocs.io/en/4.0/syntactic-analysis.html#tolerant-mode
     # for the definition of the tree, see:
     # https://github.com/estree/estree/blob/master/es5.md
-    esprimaObject = esprima.parseScript(string, options={'tolerant':True, 
-        'tokens': True}).toDict()
-    # TODO: This is breaking if the code is broken for the xss exploit, e.g:
-    # html/xssed/full/6327ecf75cb4392df52394c2c9b01e1321b0310e:
-    # <a href="JavaScript: openLookup('calendar.jsp?form=stock_form&ip=startDate&d=" onmouseover=alert(document.cookie) 
+    try:
+        esprimaObject = esprima.parseScript(string, options={'tolerant':True, 
+            'tokens': True}).toDict()
+    except esprima.error_handler.Error as e:
+        print('[ERROR] Invalid JS in %s, on code: %s' % (filename, string))
+        print(e)
+        return None
+        # Sometime the JS code is broken by the xss exploit, e.g:
+        # html/xssed/full/6327ecf75cb4392df52394c2c9b01e1321b0310e:
+        # <a href="JavaScript: openLookup('calendar.jsp?form=stock_form&ip=startDate&d=" onmouseover=alert(document.cookie) ...
+
     ## Syntactic Analysis
     for node in node_generator(esprimaObject['body']):
         try:
@@ -231,7 +238,7 @@ def parse_html(filename,
         javascript = tag.string
         if javascript is None:
             # check is None, ie. <script> has a child node
-            print('[INFO] Skipping a ill-formed <script> in file: %s', filename)
+            print('[INFO] Skipping a ill-formed <script> in file: %s' % filename)
         else:
             javascriptStrings.append(javascript)
     # 2. JS executed from javascript: links
@@ -259,7 +266,6 @@ def parse_html(filename,
         for event_tag in event_tags:
             javascriptStrings.append(event_tag[event])
     ## parse JS code
-    data_js = [parse_javascript(js) for js in javascriptStrings]
     # TODO: process the features
     ## other features
     data['html_length'] = len(raw_html)
@@ -337,7 +343,7 @@ def main():
             # no file downloaded
             # some mirrored pages are buggy, e.g 
             # http://vuln.xssed.net/2012/02/16/the-ethical-hacker.com/
-            print('[INFO] skipping xss: %s', page['url'])
+            print('[INFO] skipping xss: %s' % page['url'])
         if features_html is None: # file not found, do not write
             continue
         features_page = {**feature_class, **features_url, **features_html} # merge dicts
