@@ -101,15 +101,16 @@ def node_generator(node):
     optimized way to browse the tree, because some keys will never contains 
     child nodes. But it's very simple, and you're sure to not miss any subnodes. 
     """
-    # node is a dict
-    if isinstance(node, dict):
-        yield node
-        for key in node:
-            yield from node_generator(node[key])
-    # node is a list
-    elif isinstance(node, list):
-        for subnode in node:
-            yield from node_generator(subnode)
+    if node: # not empty dict or list 
+        # node is a dict
+        if isinstance(node, dict):
+            yield node
+            for key in node:
+                yield from node_generator(node[key])
+        # node is a list
+        elif isinstance(node, list):
+            for subnode in node:
+                yield from node_generator(subnode)
 
 def parse_javascript(string, 
         domObjects = ('windows', 'location', 'document'),
@@ -142,12 +143,20 @@ def parse_javascript(string,
     # https://github.com/estree/estree/blob/master/es5.md
     esprimaObject = esprima.parseScript(string, options={'tolerant':True, 
         'tokens': True}).toDict()
+    # TODO: This is breaking if the code is broken for the xss exploit, e.g:
+    # html/xssed/full/6327ecf75cb4392df52394c2c9b01e1321b0310e:
+    # <a href="JavaScript: openLookup('calendar.jsp?form=stock_form&ip=startDate&d=" onmouseover=alert(document.cookie) 
     ## Syntactic Analysis
     for node in node_generator(esprimaObject['body']):
-        if node['type'] in ['FunctionDeclaration', ]: # TODO: Function Declaration
-            data['js_define_function'] += 1
-        elif node['type'] in ['CallExpression', ]: # function or method calls
-            data['js_function_calls'] += 1
+        try:
+            if node['type'] in ['FunctionDeclaration', ]: # TODO: Function Declaration
+                data['js_define_function'] += 1
+            elif node['type'] in ['CallExpression', ]: # function or method calls
+                data['js_function_calls'] += 1
+        except KeyError:
+            # some node don't have a type, e.g: 
+            # {'flags': '', 'pattern': '^([a-zA-Z0-9_-])+@([a-zA-Z0-9_-])+((\\.[a-zA-Z0-9_-]{2,3}){1,2})$'}
+            continue
     ## Lexical Analysis
     tokens = esprimaObject['tokens']
     # TODO: switch to parseScript to detect dom, prop, and methods?
