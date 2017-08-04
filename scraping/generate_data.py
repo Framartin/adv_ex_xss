@@ -117,8 +117,10 @@ def parse_javascript(string,
         methods = ('write', 'getElementsByTagName', 'alert', 'eval', 
             'fromCharCode')
     ):
-    """ Parse a string representing JS code and return a dict containing 
-    features"""
+    """
+    Parse a string representing JS code and return a dict containing 
+    features
+    """
     data = {}
     data['js_length'] = len(string)
     # init 
@@ -126,7 +128,7 @@ def parse_javascript(string,
         data['js_dom_'+i] = 0
     for i in properties:
         data['js_prop_'+i] = 0
-    for i in domObjects:
+    for i in methods:
         data['js_method_'+i] = 0
     data['js_define_function'] = 0
     data['js_string_max_length'] = None 
@@ -142,14 +144,12 @@ def parse_javascript(string,
         'tokens': True}).toDict()
     ## Syntactic Analysis
     for node in node_generator(esprimaObject['body']):
-        if node.type in ['FunctionDeclaration', ]: # TODO: Function Declaration
+        if node['type'] in ['FunctionDeclaration', ]: # TODO: Function Declaration
             data['js_define_function'] += 1
-        elif node.type in ['CallExpression',]: # Function or method scalls
-            functionsList.append(node.callee.name)
-    
+        elif node['type'] in ['CallExpression', ]: # function or method calls
+            functionsList.append(node['callee']['name'])
     # number of functions used
     data['js_number_functions'] = len(set(functionsList)) # remove duplicates
-
     ## Lexical Analysis
     tokens = esprimaObject['tokens']
     # TODO: switch to parseScript to detect dom, prop, and methods?
@@ -157,15 +157,15 @@ def parse_javascript(string,
     #    var test = alert;
     #    test();
     for token in tokens:
-        if token.type == 'Identifier':
-            if token.value in domObjects:
-                data['js_dom_'+token.value] += 1
-            elif token.value in properties:
-                data['js_prop_'+token.value] += 1
-            elif token.value in methods:
-                data['js_method_'+token.value] += 1
-        elif token.type == "string":
-            stringsList.append(tokens.value)
+        if token['type'] == 'Identifier':
+            if token['value'] in domObjects:
+                data['js_dom_'+token['value']] += 1
+            elif token['value'] in properties:
+                data['js_prop_'+token['value']] += 1
+            elif token['value'] in methods:
+                data['js_method_'+token['value']] += 1
+        elif token['value'] == "string":
+            stringsList.append(tokens['value'])
     # max length of strings
     data['js_string_max_length'] = max([len(i) for i in stringsList])
     return data
@@ -321,7 +321,13 @@ def main():
             be removed: %s''' % page['url'])
         feature_class = {'class': 1} # xss
         features_url = parse_url(page['url'])
-        features_html = parse_html(page['files'][0]['path'])
+        try:
+            features_html = parse_html(page['files'][0]['path'])
+        except IndexError:
+            # no file downloaded
+            # some mirrored pages are buggy, e.g 
+            # http://vuln.xssed.net/2012/02/16/the-ethical-hacker.com/
+            print('[INFO] skipping xss: %s', page['url'])
         if features_html is None: # file not found, do not write
             continue
         features_page = {**feature_class, **features_url, **features_html} # merge dicts
