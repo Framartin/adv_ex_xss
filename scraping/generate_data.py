@@ -133,7 +133,7 @@ def parse_javascript(string,
     for i in methods:
         data['js_method_'+i] = 0
     data['js_define_function'] = 0
-    data['js_string_max_length'] = None
+    data['js_string_max_length'] = 0
     data['js_function_calls'] = 0 # number of function calls
     stringsList = []
     # JS parser ported from JS to Python.
@@ -266,8 +266,33 @@ def parse_html(filename,
         for event_tag in event_tags:
             javascriptStrings.append(event_tag[event])
     ## parse JS code
-    # TODO: process the features
-    ## other features
+    domObjects = ('windows', 'location', 'document')
+    properties = ('cookie', 'location', 'document')
+    methods = ('write', 'getElementsByTagName', 'alert', 'eval', 'fromCharCode')
+    data_js = [] # list of the features of JS codes 
+    for js in javascriptStrings:
+        # parse each JS code
+        data_current_js = parse_javascript(js, domObjects=domObjects, 
+            properties=properties, methods=methods, filename=filename)
+        if data_current_js is not None: # esprima successfully parse the code
+            data_js.append(data_current_js)
+    # process the features: from features at JS level to features at html
+    # level
+    # max dom, prop, and methods
+    for dom in domObjects:
+        data['js_dom_'+dom] = max(i['js_dom_'+dom] for i in data_js)
+    for prop in properties:
+        data['js_prop_'+prop] = max(i['js_prop_'+prop] for i in data_js)
+    for method in methods:
+        data['js_method_'+method] = max(i['js_method_'+method] for i in data_js)
+    # min
+    data['js_min_length'] = min([i['js_length'] for i in data_js])
+    data['js_min_define_function'] = min([i['js_min_define_function'] for i in data_js])
+    data['js_min_function_calls'] = min([i['js_min_function_calls'] for i in data_js])
+    # max
+    data['js_string_max_length'] = max([i['js_string_max_length'] for i in data_js])
+    
+    ## other html features
     data['html_length'] = len(raw_html)
     return data
 
