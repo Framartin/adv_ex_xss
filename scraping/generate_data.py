@@ -11,6 +11,7 @@ files were removed).
 TODO:
 - compile regex for performance
 - change the structure of the code for easier reuse for prediction (?)
+- count event handlers defined in JS?
 """ 
 
 import json, csv, re, esprima
@@ -108,13 +109,7 @@ def node_generator(node):
             for subnode in node:
                 yield from node_generator(subnode)
 
-def parse_javascript(string, 
-        domObjects = ('windows', 'location', 'document'),
-        properties = ('cookie', 'location', 'document'),
-        methods = ('write', 'getElementsByTagName', 'alert', 'eval', 
-            'fromCharCode'),
-        filename = None
-    ):
+def parse_javascript(string, domObjects, properties, methods, filename = None):
     """
     Parse a string representing JS code and return a dict containing 
     features
@@ -162,8 +157,8 @@ def parse_javascript(string,
             continue
     ## Lexical Analysis
     tokens = esprimaObject['tokens']
-    # TODO: switch to parseScript to detect dom, prop, and methods?
-    # But be careful to this case:
+    # We use lexical analysis to detect dom, prop, and methods instead of 
+    # syntactic analysis, for simplicity because of this case:
     #    var test = alert;
     #    test();
     for token in tokens:
@@ -195,14 +190,15 @@ def js_protocol(string):
         return None
 
 def has_javascript_protocol(tag):
+    #TODO
     for i in soup.form.attrs:
         soup.form.attrs[i]
     return 
 
 def parse_html(filename,
-            tags = ('script', 'iframe', 'meta', 'div'), # tags to count
+            tags = ('script', 'iframe', 'meta', 'div', 'applet', 'object', 
+            'embed', 'link'), # tags to count
             attrs = ('href', 'http-equiv', 'lowsrc'), # attributes to count
-            eventHandlers = () # eventHandlers to count. load it at call
             ):
     """
     Parses filename and returns a dict of features for future model uses
@@ -218,13 +214,35 @@ def parse_html(filename,
     soup = BeautifulSoup(raw_html, "html5lib")
     ## Init variables
     data = {}
+    # names of html attributes to define event handlers 
+    # extracted from http://help.dottoro.com/larrqqck.php
+    # using scrapy: response.xpath('//tr/td[2]/a/text()').extract()
+    eventHandlersAttr = ['onabort', 'onactivate', 'onafterprint', 
+    'onafterupdate', 'onbeforeactivate', 'onbeforecopy', 'onbeforecut',
+    'onbeforedeactivate', 'onbeforeeditfocus', 'onbeforepaste', 'onbeforeprint',
+    'onbeforeunload', 'onbeforeupdate', 'onblur', 'onbounce', 'oncellchange', 
+    'onchange', 'onclick', 'oncontextmenu', 'oncontrolselect', 'oncopy', 
+    'oncut', 'ondataavailable', 'ondatasetchanged', 'ondatasetcomplete', 
+    'ondblclick', 'ondeactivate', 'ondrag', 'ondragend', 'ondragenter', 
+    'ondragleave', 'ondragover', 'ondragstart', 'ondrop', 'onerror', 
+    'onerrorupdate', 'onfilterchange', 'onfinish', 'onfocus', 'onfocusin', 
+    'onfocusout', 'onhashchange', 'onhelp', 'oninput', 'onkeydown', 
+    'onkeypress', 'onkeyup', 'onload', 'onlosecapture', 'onmessage', 
+    'onmousedown', 'onmouseenter', 'onmouseleave', 'onmousemove', 'onmouseout', 
+    'onmouseover', 'onmouseup', 'onmousewheel', 'onmove', 'onmoveend', 
+    'onmovestart', 'onoffline', 'ononline', 'onpaste', 'onpropertychange', 
+    'onreadystatechange', 'onreset', 'onresize', 'onresizeend', 'onresizestart',
+    'onrowenter', 'onrowexit', 'onrowsdelete', 'onrowsinserted', 'onscroll', 
+    'onsearch', 'onselect', 'onselectionchange', 'onselectstart', 'onstart', 
+    'onstop', 'onsubmit', 'onunload']
+
     for tag in tags:
         data['html_tag_' + tag] = 0
     # HTML attrs
     for attr in attrs:
         data['html_attr_' + attr] = 0
     # Events Handlers
-    for event in eventHandlers:
+    for event in eventHandlersAttr:
         data['html_event_' + event] = 0
     # reference to JS file
     data['js_file'] = False
@@ -257,7 +275,7 @@ def parse_html(filename,
     for attr in attrs:
         data['html_attr_' + attr] = len(soup.find_all(attrs={attr: True}))
     ## count event handlers
-    for event in eventHandlers:
+    for event in eventHandlersAttr:
         event_tags = soup.find_all(attrs={event: True})
         data['html_event_' + event] = len(event_tags)
         # 4. JS executed from EventHandlers
@@ -265,7 +283,7 @@ def parse_html(filename,
             javascriptStrings.append(event_tag[event])
     ## parse JS code
     domObjects = ('windows', 'location', 'document')
-    properties = ('cookie', 'location', 'document')
+    properties = ('cookie', 'document', 'referrer') #location
     methods = ('write', 'getElementsByTagName', 'alert', 'eval', 'fromCharCode')
     data_js = [] # list of the features of JS codes 
     for js in javascriptStrings:
@@ -314,6 +332,7 @@ def parse_url(string):
         'window.history', 'window.navigate', 'document.URL', 
         'document.documentURI', 'document.URLUnencoded', 'document.baseURI',
         'location', 'window.open', 'self.location', 'top.location'])
+        # TODO: check the list + report it in parse_html()
         # From paper:
         # window.location, window.history, window.navigate
         # From: https://code.google.com/archive/p/domxsswiki/wikis/LocationSources.wiki
@@ -333,6 +352,7 @@ def parse_url(string):
         #Cross-Site Scriting Attack Using Machine Learning Algoritms"
         'XSS', 'banking', 'root', 'password', 'crypt', 'shell', 'evil' ])
         # from "Automatic Classification of Cross-Site Scripting in Web Pages Using Document-based and URL-based Features"
+        # TODO
     data['url_number_domain'] = len(re.findall(
         r'(?:(?!-)[A-Za-z0-9-]{1,63}(?!-)\.)+[A-Za-z]{2,6}', string))
         # adapted from: http://www.mkyong.com/regular-expressions/domain-name-regular-expression-example/
