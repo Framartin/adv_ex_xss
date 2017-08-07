@@ -11,10 +11,6 @@ files were removed).
 TODO:
 - compile regex for performance
 - change the structure of the code for easier reuse for prediction (?)
-- verify that the HTML parser is resetted at the end of each file
-- move to a better XML parser?
-- using html5lib?
- https://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
 """ 
 
 import json, csv, re, esprima
@@ -208,7 +204,9 @@ def parse_html(filename,
             attrs = ('href', 'http-equiv', 'lowsrc'), # attributes to count
             eventHandlers = () # eventHandlers to count. load it at call
             ):
-    """ Parses filename and returns a dict of features for future model uses"""
+    """
+    Parses filename and returns a dict of features for future model uses
+    """
     try:
         with open(filename, 'r', errors='backslashreplace') as f:
             # avoid UnicodeDecodeError, e.g with file: 
@@ -217,7 +215,7 @@ def parse_html(filename,
     except FileNotFoundError as e:
         print("File not found. Skipping file: %s" % filename)
         return None
-    soup = BeautifulSoup(raw_html, "lxml")
+    soup = BeautifulSoup(raw_html, "html5lib")
     ## Init variables
     data = {}
     for tag in tags:
@@ -297,8 +295,9 @@ def parse_html(filename,
     return data
 
 def parse_url(string):
-    """ Parses a URL as str and returns a dict of features for future model 
-    uses"""
+    """
+    Parses a URL as str and returns a dict of features for future model uses
+    """
     string = urldecode(string)
     data = {}
     data['url_length'] = len(string)
