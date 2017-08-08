@@ -161,6 +161,9 @@ def parse_javascript(string, domObjects, properties, methods, filename = None):
     # syntactic analysis, for simplicity because of this case:
     #    var test = alert;
     #    test();
+    # Way to bypass it:
+    # Set.constructor`alert\x28document.domain\x29```
+    # https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet#ECMAScript_6
     for token in tokens:
         if token['type'] == 'Identifier':
             if token['value'] in domObjects:
@@ -267,6 +270,18 @@ def parse_html(filename,
         javascript = js_protocol(tag['action'])
         if javascript:
             javascriptStrings.append(javascript)
+    # 4. JS executed from javascript iframe
+    # https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet#IFRAME
+    for tag in soup.find_all('iframe', attrs={'src':True}):
+        javascript = js_protocol(tag['src'])
+        if javascript:
+            javascriptStrings.append(javascript)
+    # 5. JS executed from javascript frame
+    # https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet#FRAME
+    for tag in soup.find_all('frame', attrs={'src':True}):
+        javascript = js_protocol(tag['src'])
+        if javascript:
+            javascriptStrings.append(javascript)
 
     ## count tags
     for tag in tags:
@@ -278,7 +293,7 @@ def parse_html(filename,
     for event in eventHandlersAttr:
         event_tags = soup.find_all(attrs={event: True})
         data['html_event_' + event] = len(event_tags)
-        # 4. JS executed from EventHandlers
+        # 6. JS executed from EventHandlers
         for event_tag in event_tags:
             javascriptStrings.append(event_tag[event])
     ## parse JS code
