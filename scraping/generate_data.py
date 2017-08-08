@@ -191,8 +191,8 @@ def js_protocol(string):
 
 def has_javascript_protocol(tag):
     #TODO
-    for i in soup.form.attrs:
-        soup.form.attrs[i]
+    for i in tag.attrs:
+        tag.attrs[i]
     return 
 
 def parse_html(filename,
@@ -263,8 +263,8 @@ def parse_html(filename,
         if javascript:
             javascriptStrings.append(javascript)
     # 3. JS executed from javascript form
-    for tag in soup.find_all('form', attrs={'onsubmit':True}):
-        javascript = js_protocol(tag['onsubmit'])
+    for tag in soup.find_all('form', attrs={'action':True}):
+        javascript = js_protocol(tag['action'])
         if javascript:
             javascriptStrings.append(javascript)
 
