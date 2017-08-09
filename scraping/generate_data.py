@@ -137,7 +137,7 @@ def parse_javascript(string, domObjects, properties, methods, filename = None):
         esprimaObject = esprima.parseScript(string, options={'tolerant':True, 
             'tokens': True}).toDict()
     except esprima.error_handler.Error as e:
-        print('[ERROR] Invalid JS in %s, on code: %s' % (filename, string))
+        print('[ERROR] Invalid JS in {0}, on code: {1}'.format(filename, string))
         print(e)
         return None
         # Sometime the JS code is broken by the xss exploit, e.g:
@@ -212,7 +212,7 @@ def parse_html(filename,
             # xssed/full/6327ecf75cb4392df52394c2c9b01e1321b0310e
             raw_html = f.read()
     except FileNotFoundError as e:
-        print("File not found. Skipping file: %s" % filename)
+        print("File not found. Skipping file: {0}".format(filename))
         return None
     soup = BeautifulSoup(raw_html, "html5lib")
     ## Init variables
@@ -257,7 +257,7 @@ def parse_html(filename,
         javascript = tag.string
         if javascript is None:
             # check is None, ie. <script> has a child node
-            print('[INFO] Skipping a ill-formed <script> in file: %s' % filename)
+            print('[INFO] Skipping a ill-formed <script> in file {0}: {1}'.format(filename, tag))
         else:
             javascriptStrings.append(javascript)
     # 2. JS executed from javascript: links
@@ -310,6 +310,12 @@ def parse_html(filename,
     # process the features: from features at JS level to features at html
     # level
     # max dom, prop, and methods
+    if data_js == []:
+        # no JS in the page
+        # can append if the pentester just wants to show that he can add iframe
+        # tags. Ex: http://vuln.xssed.net/2012/02/27/reseller-sisko.kamadeva.com
+        data_js.append(parse_javascript('', domObjects=domObjects, 
+            properties=properties, methods=methods))
     for dom in domObjects:
         data['js_dom_'+dom] = max(i['js_dom_'+dom] for i in data_js)
     for prop in properties:
@@ -318,8 +324,8 @@ def parse_html(filename,
         data['js_method_'+method] = max(i['js_method_'+method] for i in data_js)
     # min
     data['js_min_length'] = min([i['js_length'] for i in data_js])
-    data['js_min_define_function'] = min([i['js_min_define_function'] for i in data_js])
-    data['js_min_function_calls'] = min([i['js_min_function_calls'] for i in data_js])
+    data['js_min_define_function'] = min([i['js_define_function'] for i in data_js])
+    data['js_min_function_calls'] = min([i['js_function_calls'] for i in data_js])
     # max
     data['js_string_max_length'] = max([i['js_string_max_length'] for i in data_js])
     
@@ -347,7 +353,6 @@ def parse_url(string):
         'window.history', 'window.navigate', 'document.URL', 
         'document.documentURI', 'document.URLUnencoded', 'document.baseURI',
         'location', 'window.open', 'self.location', 'top.location'])
-        # TODO: check the list + report it in parse_html()
         # From paper:
         # window.location, window.history, window.navigate
         # From: https://code.google.com/archive/p/domxsswiki/wikis/LocationSources.wiki
@@ -375,10 +380,36 @@ def parse_url(string):
         # becareful to decode URL before 
     return data
 
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█'):
+    """
+    Code from: https://stackoverflow.com/a/34325723
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
+    # Print New Line on Complete
+    if iteration == total: 
+        print()
+
+
 def main():
     data = []
     data_rw = import_json('randomwalk.json')
-    for page in data_rw:
+    number_pages_total = len(data_rw)
+    # Initial call to print 0% progress
+    printProgressBar(0, number_pages_total, prefix = 'Progress:', 
+        suffix = 'Complete', length = 50)
+    for i, page in enumerate(data_rw):
         feature_class = {'class': 0} # benign
         # regexp to be compatible with spider before commit b651f88
         features_html = parse_html(re.sub(r'html/randomsample(/full)?/', 
@@ -389,11 +420,14 @@ def main():
         # merge dicts
         features_page = {**feature_class, **features_url, **features_html}
         data.append(features_page)
+        printProgressBar(i + 1, number_pages_total, prefix = 'Progress benign:',
+            suffix = 'Complete', length = 50)
     data_xssed = import_json('xssed.json')
-    for page in data_xssed:
+    number_pages_total = len(data_xssed)
+    for i, page in enumerate(data_xssed):
         if page['category'] not in ['XSS', 'Script Insertion']:
             print('''Warning: non-XSS vuln imported. please check if it should
-            be removed: %s''' % page['url'])
+            be removed: {0}'''.format(page['url']))
         feature_class = {'class': 1} # xss
         features_url = parse_url(page['url'])
         try:
@@ -402,11 +436,13 @@ def main():
             # no file downloaded
             # some mirrored pages are buggy, e.g 
             # http://vuln.xssed.net/2012/02/16/the-ethical-hacker.com/
-            print('[INFO] skipping xss: %s' % page['url'])
+            print('[INFO] skipping xss: {0}'.format(page['url']))
         if features_html is None: # file not found, do not write
             continue
         features_page = {**feature_class, **features_url, **features_html} # merge dicts
         data.append(features_page)
+        printProgressBar(i + 1, number_pages_total, prefix = 'Progress malicious:',
+            suffix = 'Complete', length = 50)
     write_csv(data, '../data.csv')
 
 if __name__ == "__main__":
