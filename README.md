@@ -72,6 +72,16 @@ For example, `html/xssed/full/7aee06aa9087469b5766a8b8d27194a41e2e51c0` that wei
 rm html/xssed/full/7aee06aa9087469b5766a8b8d27194a41e2e51c0
 ```
 
+### Remove broken mirrored pages
+
+The following files don't mirrored the html pages, but provide a screenshot of the pages instead. This is useless. See one example [here](http://vuln.xssed.net/2015/03/12/library.leeds.ac.uk/).
+
+```
+cd html/xssed
+grep -r '^<html><body><img src="screenshot.jpg">$'
+rm full/ea9eee5557b1541ae7a91963800d0e65e297afbe full/886c40189b6c2b23d4622f3b4a8bb4837b90dd46 full/d0d6cb0807e4a05fd9907e409335a48769546424
+```
+
 ### Remove duplicated files
 
 We need to filter duplicated HTML files download from the random walks. See `scraping/scraping/spiders/randomwalk.py` for more informations.
@@ -115,7 +125,7 @@ rm -r full
 ## Parsing HTML files to generate features
 
 ```
-python3 generate_data.py
+python3 generate_data.py > log_generate_data.txt
 ls -lh data.csv
 ```
 
