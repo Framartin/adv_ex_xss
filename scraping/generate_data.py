@@ -28,67 +28,6 @@ def write_csv(data, filename):
         reader.writeheader()
         reader.writerows(data)
 
-# class MyHTMLParser(HTMLParser):
-#     def __init__(self, 
-#             tags = ('script', 'iframe', 'meta', 'div'), # tags to count
-#             attrs = ('href', 'http-equiv', 'lowsrc'), # attributes to count
-#             eventHandlers = (), # eventHandlers to count. load it at call
-#         ):
-#         HTMLParser.__init__(self)
-#         self.data = {}
-#         self.tags = tags
-#         self.attrs = attrs
-#         self.eventHandlers = eventHandlers
-#         # HTML tags
-#         for tag in tags:
-#            self.data['html_tag_' + tag] = 0
-#         # HTML attrs
-#         for attr in attrs:
-#            self.data['html_attr_' + attr] = 0
-#         # Events Handlers
-#         for event in eventHandlers:
-#            self.data['html_event_' + event] = 0
-#         # reference to JS file
-#         self.data['js_file'] = False
-#         # Store JS strings for further processing
-#         self.javascript = [] # list of JS strings
-#         # JS will be extracted from <script> tag, event handlers, 
-#         # javascript: link, javascript: onsubmit
-#         # cf: https://stackoverflow.com/questions/12008172/how-many-ways-are-to-call-javascript-code-from-html
-
-#     def handle_starttag(self, tag, attrs):
-#         if tag in self.tags:
-#             self.data['html_tag_' + tag] += 1
-#         for attr in attrs:
-#             if attr[0] in self.attrs:
-#                 self.data['html_attr_' + attr[0]] += 1
-#             if attr[0] in self.eventHandlers:
-#                 self.data['html_event_' + attr[0]] += 1
-#                 self.javascript.append(attr[1]) # javascript attached to the event
-#             js_protocol = re.search(r'^\s*javascript:(.*)', attr[1], 
-#                 flags=(re.IGNORECASE|re.DOTALL))
-#                 # ignore case, white space, and new line (important)
-#             if bool(js_protocol):
-#                 code = js_protocol.group(1)
-#                 # strip out "javascript:" to keep only the code
-#                 self.javascript.append(code) # javascript protocol
-
-#         if tag == "script":
-#             self.inScript = True # we are in a script tag
-#             if 'src' in attrs:
-#                 # don't check file extension. JS can be called from any file
-#                 # extention
-#                 self.data['js_file'] = True
-
-#     def handle_data(self, data):
-#         if self.inScript:
-#             self.javascript.append(data)
-
-#     def handle_endtag(self, tag):
-#         if tag == "script":
-#             self.inScript = False
-
-
 def node_generator(node):
     """
     Generator that takes an Esprima object (or a Esprima node) from the esprima
@@ -147,9 +86,9 @@ def parse_javascript(string, domObjects, properties, methods, filename = None):
     ## Syntactic Analysis
     for node in node_generator(esprimaObject['body']):
         try:
-            if node['type'] in ['FunctionDeclaration', ]: # TODO: Function Declaration
+            if node['type'] in ['FunctionDeclaration', ]: # Function Declaration
                 data['js_define_function'] += 1
-            elif node['type'] in ['CallExpression', ]: # function or method calls
+            elif node['type'] in ['CallExpression', 'FunctionExpression']: # function or method calls
                 data['js_function_calls'] += 1
         except KeyError:
             # some node don't have a type, e.g: 
@@ -192,11 +131,11 @@ def js_protocol(string):
     else:
         return None
 
-def has_javascript_protocol(tag):
-    #TODO
-    for i in tag.attrs:
-        tag.attrs[i]
-    return 
+# def has_javascript_protocol(tag):
+#     #TODO
+#     for i in tag.attrs:
+#         tag.attrs[i]
+#     return 
 
 def parse_html(filename,
             tags = ('script', 'iframe', 'meta', 'div', 'applet', 'object', 
@@ -251,6 +190,8 @@ def parse_html(filename,
     data['js_file'] = False
 
     ## Extract JS code
+    # JS will be extracted from <script> tag, event handlers, javascript: link
+    # cf: https://stackoverflow.com/questions/12008172/how-many-ways-are-to-call-javascript-code-from-html
     javascriptStrings = []
     # 1. from <script>
     for tag in soup.find_all('script', src=False):
@@ -420,8 +361,9 @@ def main():
         # merge dicts
         features_page = {**feature_class, **features_url, **features_html}
         data.append(features_page)
-        printProgressBar(i + 1, number_pages_total, prefix = 'Progress benign:',
-            suffix = 'Complete', length = 50)
+        if i % 20 == 0:
+            printProgressBar(i + 1, number_pages_total, prefix = 'Progress benign:',
+                suffix = 'Complete', length = 50)
     data_xssed = import_json('xssed.json')
     number_pages_total = len(data_xssed)
     for i, page in enumerate(data_xssed):
@@ -441,8 +383,9 @@ def main():
             continue
         features_page = {**feature_class, **features_url, **features_html} # merge dicts
         data.append(features_page)
-        printProgressBar(i + 1, number_pages_total, prefix = 'Progress malicious:',
-            suffix = 'Complete', length = 50)
+        if i % 20 == 0:
+            printProgressBar(i + 1, number_pages_total, prefix = 'Progress malicious:',
+                suffix = 'Complete', length = 50)
     write_csv(data, '../data.csv')
 
 if __name__ == "__main__":
