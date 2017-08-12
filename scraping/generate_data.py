@@ -17,6 +17,7 @@ TODO:
 import json, csv, re, esprima
 from urllib.parse import unquote as urldecode
 from bs4 import BeautifulSoup
+from os import listdir
 
 def import_json(filename):
     with open(filename, 'r') as f:
@@ -75,7 +76,7 @@ def parse_javascript(string, domObjects, properties, methods, filename = None):
     try:
         esprimaObject = esprima.parseScript(string, options={'tolerant':True, 
             'tokens': True}).toDict()
-    except esprima.error_handler.Error as e:
+    except (esprima.error_handler.Error, RecursionError) as e:
         print('[ERROR] Invalid JS in {0}, on code: {1}'.format(filename, string))
         print(e)
         return None
@@ -342,19 +343,23 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     if iteration == total: 
         print()
 
-
 def main():
     data = []
     data_rw = import_json('randomwalk.json')
     number_pages_total = len(data_rw)
+    path_randomwalk = 'html/randomsample/subsample/'
+    files_randomwalk = [path_randomwalk+i for i in listdir(path_randomwalk)]
     # Initial call to print 0% progress
     printProgressBar(0, number_pages_total, prefix = 'Progress:', 
         suffix = 'Complete', length = 50)
     for i, page in enumerate(data_rw):
         feature_class = {'class': 0} # benign
         # regexp to be compatible with spider before commit b651f88
-        features_html = parse_html(re.sub(r'html/randomsample(/full)?/', 
-            r'html/randomsample/subsample/', page['file_path']))
+        file_path = re.sub(r'html/randomsample(/full)?/', path_randomwalk,
+            page['file_path'])
+        if file_path not in files_randomwalk:
+            continue
+        features_html = parse_html(file_path)
         if features_html is None: # file not found, do not write
             continue
         features_url = parse_url(page['url'])
@@ -365,20 +370,25 @@ def main():
             printProgressBar(i + 1, number_pages_total, prefix = 'Progress benign:',
                 suffix = 'Complete', length = 50)
     data_xssed = import_json('xssed.json')
+    path_xssed = 'html/xssed/full/'
+    files_xssed = ['full/'+i for i in listdir(path_xssed)]
     number_pages_total = len(data_xssed)
     for i, page in enumerate(data_xssed):
-        if page['category'] not in ['XSS', 'Script Insertion']:
-            print('''Warning: non-XSS vuln imported. please check if it should
-            be removed: {0}'''.format(page['url']))
-        feature_class = {'class': 1} # xss
-        features_url = parse_url(page['url'])
         try:
-            features_html = parse_html('html/xssed/'+page['files'][0]['path'])
+            file_path = page['files'][0]['path'] # fin the form: full/xxxx
         except IndexError:
             # no file downloaded
             # some mirrored pages are buggy, e.g 
             # http://vuln.xssed.net/2012/02/16/the-ethical-hacker.com/
             print('[INFO] skipping xss: {0}'.format(page['url']))
+        if file_path not in files_xssed:
+            continue
+        if page['category'] not in ['XSS', 'Script Insertion']:
+            print('''Warning: non-XSS vuln imported. please check if it should
+            be removed: {0}'''.format(page['url']))
+        feature_class = {'class': 1} # xss
+        features_url = parse_url(page['url'])
+        features_html = parse_html('html/xssed/'+file_path)
         if features_html is None: # file not found, do not write
             continue
         features_page = {**feature_class, **features_url, **features_html} # merge dicts
