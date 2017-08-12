@@ -188,7 +188,7 @@ def parse_html(filename,
     for event in eventHandlersAttr:
         data['html_event_' + event] = 0
     # reference to JS file
-    data['js_file'] = False
+    data['js_file'] = bool(soup.find_all('script', src=True))
 
     ## Extract JS code
     # JS will be extracted from <script> tag, event handlers, javascript: link
