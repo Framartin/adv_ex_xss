@@ -215,13 +215,13 @@ apply_pertubation <- function(data, condition) {
         data[, var_name] <- break_condition
     } else if (grepl('<', condition, fixed=T)) {
         if (is.integer(data[, var_name])) {
-            data[, var_name] <- as.integer(break_condition) - 1
+            data[, var_name] <- as.integer(break_condition) - 1L
         } else { 
             stop('var type not supported')
         }
     } else if (grepl('>', condition, fixed=T)) {
         if (is.integer(data[, var_name])) {
-            data[, var_name] <- as.integer(break_condition) + 1
+            data[, var_name] <- as.integer(break_condition) + 1L
         } else {
             stop('var type not supported')
         }
