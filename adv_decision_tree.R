@@ -1,11 +1,12 @@
-library(Rweka)
+library(RWeka)
 library(partykit)
 library(data.tree)
 
 # TODO:
 # - don't forget to work only on data.pred[data.pred$class==TRUE,]
 # - warning: dependance between variables: for example, adding a new tag, increases html_length
-
+# - variables: aggregate? for example, sumup all html_event_* on a new html_event var
+# - add K-fold
 
 predicted_class_leaves <- function(partytree) {
     # DEPRECATED
@@ -259,17 +260,42 @@ for (i in colnames(data)) {
 
 find_adversarial_example(partytree, data.tree, newdata, constraints = constraints)
 
-data.pred.malicious <- data.pred[data.pred$class==TRUE,]
-successful_bypasses <- data.frame()
-for (i in 1:nrow(data.pred.malicious)) {
-    cat('*')
-    newdata_adv <- find_adversarial_example(partytree, data.tree, newdata = data.pred.malicious[i, ], constraints = constraints)
-    if (! is.null(newdata_adv))
-        successful_bypasses <- rbind(successful_bypasses, newdata_adv)
+# TODO: use data.pred or data.train or both?
+data.pred.malicious <- data.pred[data.pred$class==TRUE,] 
+
+run_adversarial_strategy <- function(constraints) {
+    # TODO: cleaner
+    successful_bypasses <- data.frame()
+    for (i in 1:nrow(data.pred.malicious)) {
+        cat('*')
+        newdata_adv <- find_adversarial_example(partytree, data.tree, newdata = data.pred.malicious[i, ], constraints = constraints)
+        if (! is.null(newdata_adv))
+            successful_bypasses <- rbind(successful_bypasses, newdata_adv)
+    }
+    # number of bypasses
+    cat('\nnumber of bypasses: ', nrow(successful_bypasses), '\n')
+    # % of escape
+    cat('number of bypasses: ', nrow(successful_bypasses)/nrow(data.pred.malicious), '\n')
 }
 
-# number of bypasses
-nrow(successful_bypasses)
-# % of escape
-nrow(successful_bypasses)/nrow(data.pred.malicious)
+run_adversarial_strategy(constraints)
+# number of bypasses:  26 
+# number of bypasses:  0.0795107 
 
+# on train: 0.077101
+
+
+# other constraints
+constraints2 <- constraints
+for (i in c('url_number_keywords', 'js_method_alert', 'js_min_define_function')) {  
+    # url_number_domain ?
+    # url_cookie ?
+    # js_min_function_calls ?
+    constraints2[[i]] <- FALSE
+}
+
+run_adversarial_strategy(constraints2)
+# number of bypasses:  27 
+# number of bypasses:  0.08256881 
+
+# on train: 0.07941403
