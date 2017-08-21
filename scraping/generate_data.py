@@ -140,7 +140,7 @@ def js_protocol(string):
 
 def parse_html(filename,
             tags = ('script', 'iframe', 'meta', 'div', 'applet', 'object', 
-            'embed', 'link'), # tags to count
+            'embed', 'link', 'svg'), # tags to count
             attrs = ('href', 'http-equiv', 'lowsrc'), # attributes to count
             ):
     """
@@ -241,7 +241,8 @@ def parse_html(filename,
     ## parse JS code
     domObjects = ('windows', 'location', 'document')
     properties = ('cookie', 'document', 'referrer') #location
-    methods = ('write', 'getElementsByTagName', 'alert', 'eval', 'fromCharCode')
+    methods = ('write', 'getElementsByTagName', 'alert', 'eval', 'fromCharCode',
+        'prompt', 'confirm')
     data_js = [] # list of the features of JS codes 
     for js in javascriptStrings:
         # parse each JS code
