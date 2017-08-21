@@ -261,10 +261,9 @@ for (i in colnames(data)) {
 find_adversarial_example(partytree, data.tree, newdata, constraints = constraints)
 
 # TODO: use data.pred or data.train or both?
-data.pred.malicious <- data.pred[data.pred$class==TRUE,] 
+data.pred.malicious <- data.pred[data.pred$class==TRUE, ]
 
-run_adversarial_strategy <- function(constraints) {
-    # TODO: cleaner
+run_adversarial_strategy <- function(partytree, data.tree, data.pred.malicious, constraints) {
     successful_bypasses <- data.frame()
     for (i in 1:nrow(data.pred.malicious)) {
         cat('*')
@@ -275,10 +274,11 @@ run_adversarial_strategy <- function(constraints) {
     # number of bypasses
     cat('\nnumber of bypasses: ', nrow(successful_bypasses), '\n')
     # % of escape
-    cat('number of bypasses: ', nrow(successful_bypasses)/nrow(data.pred.malicious), '\n')
+    cat('% of bypasses: ', nrow(successful_bypasses)/nrow(data.pred.malicious)*100, '\n\n')
+    return(list(number_bypasses = nrow(successful_bypasses), proportion_bypasses = nrow(successful_bypasses)/nrow(data.pred.malicious)))
 }
 
-run_adversarial_strategy(constraints)
+run_adversarial_strategy(partytree, data.tree, data.pred.malicious, constraints)
 # number of bypasses:  26 
 # number of bypasses:  0.0795107 
 
@@ -294,8 +294,50 @@ for (i in c('url_number_keywords', 'js_method_alert', 'js_min_define_function'))
     constraints2[[i]] <- FALSE
 }
 
-run_adversarial_strategy(constraints2)
+run_adversarial_strategy(partytree, data.tree, data.pred.malicious, constraints2)
 # number of bypasses:  27 
 # number of bypasses:  0.08256881 
 
 # on train: 0.07941403
+
+
+
+# 10-Fold CV
+# TODO: stratified k-fold cross-validation?
+for (i in 1:10) {
+    
+}
+
+# aggregate data
+# TODO
+
+train_J48_and_find_adv <- function(data, constraints) {
+    set.seed(42)
+    n.train <- floor(nrow(data)*0.8)
+    is.train <- sample(c(rep(TRUE, n.train), rep(FALSE, nrow(data) - n.train)))
+    data.train <- data[is.train,]
+    data.pred <- data[!is.train,]
+    m1 <- J48(class~., data = data.train)
+    cat('J48 accuracy: ', sum(diag(prop.table(table(data.pred$class, predict(m1, data.pred))))), '\n')
+    
+    partytree <- as.party(m1)
+    data.tree <- as.Node(partytree)
+    data.pred.malicious <- data.pred[data.pred$class==TRUE, ]
+    return(run_adversarial_strategy(partytree, data.tree, data.pred.malicious, constraints))
+}
+
+data.agg <- data[ ,!grepl('^html_event_', colnames(data))]
+data.agg$html_event <- rowSums(data[ ,grepl('^html_event_', colnames(data))])
+
+constraints.agg <- vector(mode='list', length=ncol(data))
+names(constraints.agg) <- colnames(data)
+for (i in colnames(data)) {
+    constraints.agg[[i]] = TRUE
+}
+constraints2.agg <- constraints.agg
+for (i in c('url_number_keywords', 'js_method_alert', 'js_min_define_function', 'url_script_tag', 'html_tag_script')) {  
+    constraints2.agg[[i]] <- FALSE
+}
+
+train_J48_and_find_adv(data.agg, constraints.agg)
+train_J48_and_find_adv(data.agg, constraints2.agg)
