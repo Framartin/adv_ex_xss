@@ -138,11 +138,7 @@ def js_protocol(string):
 #         tag.attrs[i]
 #     return 
 
-def parse_html(filename,
-            tags = ('script', 'iframe', 'meta', 'div', 'applet', 'object', 
-            'embed', 'link', 'svg'), # tags to count
-            attrs = ('href', 'http-equiv', 'lowsrc'), # attributes to count
-            ):
+def parse_html_file(filename):
     """
     Parses filename and returns a dict of features for future model uses
     """
@@ -151,9 +147,20 @@ def parse_html(filename,
             # avoid UnicodeDecodeError, e.g with file: 
             # xssed/full/6327ecf75cb4392df52394c2c9b01e1321b0310e
             raw_html = f.read()
+            return parse_html(raw_html)
     except FileNotFoundError as e:
         print("File not found. Skipping file: {0}".format(filename))
         return None
+
+def parse_html(raw_html,
+            tags = ('script', 'iframe', 'meta', 'div', 'applet', 'object', 
+            'embed', 'link', 'svg'), # tags to count
+            attrs = ('href', 'http-equiv', 'lowsrc'), # attributes to count
+            ):
+    """
+    Parses raw_html as a string containing HTML and returns a dict of features
+    for future model uses
+    """
     soup = BeautifulSoup(raw_html, "html5lib")
     ## Init variables
     data = {}
@@ -242,7 +249,7 @@ def parse_html(filename,
     domObjects = ('windows', 'location', 'document')
     properties = ('cookie', 'document', 'referrer') #location
     methods = ('write', 'getElementsByTagName', 'alert', 'eval', 'fromCharCode',
-        'prompt', 'confirm')
+        'prompt', 'confirm', 'fetch')
     data_js = [] # list of the features of JS codes 
     for js in javascriptStrings:
         # parse each JS code
@@ -360,7 +367,7 @@ def main():
             page['file_path'])
         if file_path not in files_randomwalk:
             continue
-        features_html = parse_html(file_path)
+        features_html = parse_html_file(file_path)
         if features_html is None: # file not found, do not write
             continue
         features_url = parse_url(page['url'])
@@ -389,7 +396,7 @@ def main():
             be removed: {0}'''.format(page['url']))
         feature_class = {'class': 1} # xss
         features_url = parse_url(page['url'])
-        features_html = parse_html('html/xssed/'+file_path)
+        features_html = parse_html_file('html/xssed/'+file_path)
         if features_html is None: # file not found, do not write
             continue
         features_page = {**feature_class, **features_url, **features_html} # merge dicts
