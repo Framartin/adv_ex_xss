@@ -25,7 +25,7 @@ def import_json(filename):
 
 def write_csv(data, filename):
     with open(filename, 'w') as f:
-        reader = csv.DictWriter(f, data[0].keys())
+        reader = csv.DictWriter(f, data[0].keys(), quoting=csv.QUOTE_NONNUMERIC)
         reader.writeheader()
         reader.writerows(data)
 
@@ -147,7 +147,7 @@ def parse_html_file(filename):
             # avoid UnicodeDecodeError, e.g with file: 
             # xssed/full/6327ecf75cb4392df52394c2c9b01e1321b0310e
             raw_html = f.read()
-            return parse_html(raw_html)
+            return parse_html(raw_html, filename = filename)
     except FileNotFoundError as e:
         print("File not found. Skipping file: {0}".format(filename))
         return None
@@ -156,6 +156,7 @@ def parse_html(raw_html,
             tags = ('script', 'iframe', 'meta', 'div', 'applet', 'object', 
             'embed', 'link', 'svg'), # tags to count
             attrs = ('href', 'http-equiv', 'lowsrc'), # attributes to count
+            filename = None,
             ):
     """
     Parses raw_html as a string containing HTML and returns a dict of features
