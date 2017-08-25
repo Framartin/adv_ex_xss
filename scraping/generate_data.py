@@ -330,8 +330,11 @@ def parse_url(string):
         r'(?:(?!-)[A-Za-z0-9-]{1,63}(?!-)\.)+[A-Za-z]{2,6}', string))
         # adapted from: http://www.mkyong.com/regular-expressions/domain-name-regular-expression-example/
         # idea to bypass: IDN domain names: https://stackoverflow.com/a/26987741
-        # becareful to decode URL before 
-        # TODO: add number of IP addresses
+        # becareful to decode URL before
+    data['url_number_ip'] = len(re.findall(
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(\.\d{1,3}\.\d{1,3})?', string))
+        # add number of IP addresses v4 or v6
+        # https://stackoverflow.com/a/44891763
     return data
 
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█'):
