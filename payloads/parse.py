@@ -13,6 +13,7 @@ def main():
     'js_min_length'.
     """
     data = []
+    data_url_empty = parser.parse_url('')
     payload_reflected = {'xss_type': 'reflected'}
     payload_stored = {'xss_type': 'stored'}
     payloads = parser.import_json('payloads.json')
@@ -30,7 +31,7 @@ def main():
         data_attack = {**payload_info, **payload_reflected, **data_url, **data_html}
         data.append(data_attack)
         # attack data if payload used in a stored XSS
-        data_attack = {**payload_info, **payload_stored, **data_html}
+        data_attack = {**payload_info, **payload_stored, **data_url_empty, **data_html}
         data.append(data_attack)
     parser.write_csv(data, 'attacks.csv')
 

