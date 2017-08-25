@@ -318,17 +318,20 @@ def parse_url(string):
         #         $(location).prop('href', 'http://www.example.com')
         # https://stackoverflow.com/a/4745012
         # document.location
-    data['url_number_keywords'] = sum(i in string for i in ['login', 'signup', 
+    data['url_number_keywords'] = sum(i in string.lower() for i in ['login', 'signup', 
         'contact', 'search', 'query', 'redirect', # from "Prediction of 
         #Cross-Site Scriting Attack Using Machine Learning Algoritms"
-        'XSS', 'banking', 'root', 'password', 'crypt', 'shell', 'evil' ])
+        'XSS', 'banking', 'root', 'password', 'crypt', 'shell', 'evil',
         # from "Automatic Classification of Cross-Site Scripting in Web Pages Using Document-based and URL-based Features"
-        # TODO
+        'hack', 'pwd', 'own', 'h4ck', 'h@ck','|-|4(|<'])
+        # from me
+        # TODO: get the full list from previous papers
     data['url_number_domain'] = len(re.findall(
         r'(?:(?!-)[A-Za-z0-9-]{1,63}(?!-)\.)+[A-Za-z]{2,6}', string))
         # adapted from: http://www.mkyong.com/regular-expressions/domain-name-regular-expression-example/
         # idea to bypass: IDN domain names: https://stackoverflow.com/a/26987741
         # becareful to decode URL before 
+        # TODO: add number of IP addresses
     return data
 
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█'):
