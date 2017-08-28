@@ -199,16 +199,18 @@ find_adversarial_example <- function(partytree, data.tree, newdata, legitimate_c
 # Test runs
 
 data <- read.csv('data.csv')
+logical_vars <- c()
 # convert factor to logical when appropriate
 for (var in colnames(data)) {
     if (is.factor(data[,var])) {
         if (all(levels(data[,var]) %in% c("False", "True"))) {
             #data[,var] = as.logical(data[,var])
+            logical_vars <- c(logical_vars, var)
             data[,var] = as.integer(as.logical(data[,var])) # until the fix for the bug in logical variable handling in partykit, converts to int
         }
     }
 }
-
+#data <- subset(data, select = -url_special_characters) # TODO
 data$class <- as.factor(as.logical(data$class))
 str(data)
 
@@ -257,6 +259,7 @@ for (i in colnames(data)) {
 # TODO: impact of perturbations on:
 # - url_length
 # - html_length
+# TODO: pronblem with variables like js_min_length. Cannot necessary be changed.
 
 find_adversarial_example(partytree, data.tree, newdata, constraints = constraints)
 
@@ -280,14 +283,22 @@ run_adversarial_strategy <- function(partytree, data.tree, data.pred.malicious, 
 
 run_adversarial_strategy(partytree, data.tree, data.pred.malicious, constraints)
 # number of bypasses:  26 
-# number of bypasses:  0.0795107 
+# portion of bypasses:  0.0795107 
 
 # on train: 0.077101
+
+# without url_special_char
+#number of bypasses:  65 
+# % of bypasses:  19.87768 
+
+# with updated data.csv (including new features from generate_data.py)
+# number of bypasses:  41 
+# % of bypasses:  12.65432 
 
 
 # other constraints
 constraints2 <- constraints
-for (i in c('url_number_keywords', 'js_method_alert', 'js_min_define_function')) {  
+for (i in c('url_number_keywords_evil', 'html_number_keywords_evil', 'js_method_alert', 'js_method_prompt', 'js_min_define_function')) {  
     # url_number_domain ?
     # url_cookie ?
     # js_min_function_calls ?
@@ -300,6 +311,13 @@ run_adversarial_strategy(partytree, data.tree, data.pred.malicious, constraints2
 
 # on train: 0.07941403
 
+# without url_special_char
+# number of bypasses:  67 
+# % of bypasses:  20.4893 
+
+# with updated data.csv (including new features from generate_data.py)
+# number of bypasses:  41 
+# % of bypasses:  12.65432 
 
 
 # 10-Fold CV
@@ -327,11 +345,11 @@ train_J48_and_find_adv <- function(data, constraints) {
 }
 
 data.agg <- data[ ,!grepl('^html_event_', colnames(data))]
-data.agg$html_event <- rowSums(data[ ,grepl('^html_event_', colnames(data))])
+data.agg$html_event <- as.integer(rowSums(data[ ,grepl('^html_event_', colnames(data))]))
 
-constraints.agg <- vector(mode='list', length=ncol(data))
-names(constraints.agg) <- colnames(data)
-for (i in colnames(data)) {
+constraints.agg <- vector(mode='list', length=ncol(data.agg))
+names(constraints.agg) <- colnames(data.agg)
+for (i in colnames(data.agg)) {
     constraints.agg[[i]] = TRUE
 }
 constraints2.agg <- constraints.agg
@@ -340,4 +358,62 @@ for (i in c('url_number_keywords', 'js_method_alert', 'js_min_define_function', 
 }
 
 train_J48_and_find_adv(data.agg, constraints.agg)
+#without url_special_char
+# number of bypasses:  65 
+# % of bypasses:  19.87768 
+
 train_J48_and_find_adv(data.agg, constraints2.agg)
+#without url_special_char
+# number of bypasses:  327 
+# % of bypasses:  100 
+
+
+###
+
+payloads <- read.csv("payloads/attacks.csv")
+
+apply_xss <- function(data, payload) {
+    # give a data and simulates a XSS defined by the data of payload
+    # min
+    var_min <- colnames(data)[grepl('*_min_*', colnames(data))]
+    for (i in var_min) {
+        to_change <- (data[, i] > rep(payload[, i], nrow(data)))
+        data[to_change,i] <- payload[, i]
+    }
+    for (i in logical_vars) {
+        if (payload[,i] == "True") {
+            data[,i] <- 1
+        } 
+    }
+    for (i in colnames(data)[! colnames(data) %in% c(logical_vars, var_min, 'class') ]) {
+        data[,i] <- data[,i] + rep(payload[,i], nrow(data))
+    }
+    return(data)
+}
+
+
+# on benign test dataset, add the payloads, and see the results
+train_J48_and_add_payloads <- function(data) {
+    set.seed(42)
+    n.train <- floor(nrow(data)*0.8)
+    is.train <- sample(c(rep(TRUE, n.train), rep(FALSE, nrow(data) - n.train)))
+    data.train <- data[is.train,]
+    data.pred <- data[!is.train,]
+    m1 <- J48(class~., data = data.train)
+    cat('J48 accuracy: ', sum(diag(prop.table(table(data.pred$class, predict(m1, data.pred))))), '\n')
+    
+    partytree <- as.party(m1)
+    data.tree <- as.Node(partytree)
+    data.pred.malicious <- data.pred[data.pred$class==TRUE, ]
+    data.pred.benign <- data.pred[data.pred$class==FALSE, ]
+    for (i in 1:nrow(payloads)) {
+        payload <- payloads[i,]
+        print(sprintf("XSS simulation %s with payload: %s", payload$xss_type, payload$xss_string))
+        data.pred.malicious.sim <- apply_xss(data.pred.benign, payload)
+        data.pred.malicious.sim$class_pred <- predict(m1, data.pred.malicious.sim)
+        cat("Sucessfull detections: ", sum(data.pred.malicious.sim$class_pred == TRUE & data.pred.malicious.sim$class == FALSE), '\n')
+        cat("Failed detections: ", sum(data.pred.malicious.sim$class_pred == FALSE & data.pred.malicious.sim$class == FALSE), '\n')
+    }
+}
+
+train_J48_and_add_payloads(data)
