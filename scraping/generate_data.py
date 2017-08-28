@@ -20,7 +20,8 @@ from bs4 import BeautifulSoup
 from os import listdir
 
 # tags and attributes to count: in URL and in HTML
-TAGS = ['script', 'iframe', 'meta', 'applet', 'object', 'embed', 'link', 'svg']
+TAGS = ['script', 'iframe', 'meta', 'applet', 'object', 'embed', 'link', 'svg',
+    'frame', 'form']
 ATTRS = ['href', 'http-equiv', 'lowsrc'] #TODO
 # names of html attributes to define event handlers
 # extracted from http://help.dottoro.com/larrqqck.php
@@ -217,6 +218,7 @@ def parse_html(raw_html,
             flags=re.IGNORECASE))
     # reference to JS file
     data['js_file'] = bool(soup.find_all('script', src=True))
+    data['js_pseudo_protocol'] = False
 
     ## Extract JS code
     # JS will be extracted from <script> tag, event handlers, javascript: link
@@ -235,23 +237,27 @@ def parse_html(raw_html,
         javascript = js_protocol(tag['href'])
         if javascript:
             javascriptStrings.append(javascript)
+            data['js_pseudo_protocol'] = True
     # 3. JS executed from javascript form
     for tag in soup.find_all('form', attrs={'action':True}):
         javascript = js_protocol(tag['action'])
         if javascript:
             javascriptStrings.append(javascript)
+            data['js_pseudo_protocol'] = True
     # 4. JS executed from javascript iframe
     # https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet#IFRAME
     for tag in soup.find_all('iframe', attrs={'src':True}):
         javascript = js_protocol(tag['src'])
         if javascript:
             javascriptStrings.append(javascript)
+            data['js_pseudo_protocol'] = True
     # 5. JS executed from javascript frame
     # https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet#FRAME
     for tag in soup.find_all('frame', attrs={'src':True}):
         javascript = js_protocol(tag['src'])
         if javascript:
             javascriptStrings.append(javascript)
+            data['js_pseudo_protocol'] = True
 
     ## count tags
     for tag in tags:
