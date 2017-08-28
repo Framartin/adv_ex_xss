@@ -19,6 +19,44 @@ from urllib.parse import unquote as urldecode
 from bs4 import BeautifulSoup
 from os import listdir
 
+# tags and attributes to count: in URL and in HTML
+TAGS = ['script', 'iframe', 'meta', 'applet', 'object', 'embed', 'link', 'svg']
+ATTRS = ['href', 'http-equiv', 'lowsrc'] #TODO
+# names of html attributes to define event handlers
+# extracted from http://help.dottoro.com/larrqqck.php
+# using scrapy: response.xpath('//tr/td[2]/a/text()').extract()
+EVENTHANDLERSATTRS = ['onabort', 'onactivate', 'onafterprint', 
+    'onafterupdate', 'onbeforeactivate', 'onbeforecopy', 'onbeforecut',
+    'onbeforedeactivate', 'onbeforeeditfocus', 'onbeforepaste', 'onbeforeprint',
+    'onbeforeunload', 'onbeforeupdate', 'onblur', 'onbounce', 'oncellchange', 
+    'onchange', 'onclick', 'oncontextmenu', 'oncontrolselect', 'oncopy', 
+    'oncut', 'ondataavailable', 'ondatasetchanged', 'ondatasetcomplete', 
+    'ondblclick', 'ondeactivate', 'ondrag', 'ondragend', 'ondragenter', 
+    'ondragleave', 'ondragover', 'ondragstart', 'ondrop', 'onerror', 
+    'onerrorupdate', 'onfilterchange', 'onfinish', 'onfocus', 'onfocusin', 
+    'onfocusout', 'onhashchange', 'onhelp', 'oninput', 'onkeydown', 
+    'onkeypress', 'onkeyup', 'onload', 'onlosecapture', 'onmessage', 
+    'onmousedown', 'onmouseenter', 'onmouseleave', 'onmousemove', 'onmouseout', 
+    'onmouseover', 'onmouseup', 'onmousewheel', 'onmove', 'onmoveend', 
+    'onmovestart', 'onoffline', 'ononline', 'onpaste', 'onpropertychange', 
+    'onreadystatechange', 'onreset', 'onresize', 'onresizeend', 'onresizestart',
+    'onrowenter', 'onrowexit', 'onrowsdelete', 'onrowsinserted', 'onscroll', 
+    'onsearch', 'onselect', 'onselectionchange', 'onselectstart', 'onstart', 
+    'onstop', 'onsubmit', 'onunload']
+# keywords to count
+# TODO: get the full list from previous papers
+# keywords frequent on URL parameters
+KEYWORDS_PARAM = ['login', 'signup', 'contact', 'search', 'query', 'redirect',
+    # from "Prediction of Cross-Site Scriting Attack Using Machine Learning Algoritms"
+    'url']
+    # from me
+# keywords frequent on hacked pages. Frequent words in hacker's message
+KEYWORDS_EVIL = ['XSS', 'evil',
+    # selected from "Automatic Classification of Cross-Site Scripting in Web Pages Using Document-based and URL-based Features"
+    'hack', 'pwd', 'pown', 'h4ck', 'h@ck','|-|4(|<', 'anonymous', 'control by',
+    'controled by', 'in control', 'under the control']
+    # from me
+
 def import_json(filename):
     with open(filename, 'r') as f:
         return json.load(f)
@@ -125,6 +163,8 @@ def js_protocol(string):
     pseudo-protocol or None if it's not.
     """ 
     # ignore case, white space, and new line (important)
+    # HTML entities are correctly handled by the HTML parser, see 
+    # https://github.com/Framartin/adv_ex_xss/issues/1#issuecomment-325464896
     is_js = re.search(r'^\s*javascript:(.*)', string, 
         flags=(re.IGNORECASE|re.DOTALL))
     if bool(is_js):
@@ -132,11 +172,6 @@ def js_protocol(string):
     else:
         return None
 
-# def has_javascript_protocol(tag):
-#     #TODO
-#     for i in tag.attrs:
-#         tag.attrs[i]
-#     return 
 
 def parse_html_file(filename):
     """
@@ -153,10 +188,11 @@ def parse_html_file(filename):
         return None
 
 def parse_html(raw_html,
-            tags = ('script', 'iframe', 'meta', 'div', 'applet', 'object', 
-            'embed', 'link', 'svg'), # tags to count
-            attrs = ('href', 'http-equiv', 'lowsrc'), # attributes to count
-            filename = None,
+            tags = TAGS, # tags to count
+            attrs = ATTRS, # attributes to count
+            eventHandlersAttrs = EVENTHANDLERSATTRS,
+            keywords_evil = KEYWORDS_EVIL,
+            filename = None, # for logging infos and errors
             ):
     """
     Parses raw_html as a string containing HTML and returns a dict of features
@@ -165,27 +201,6 @@ def parse_html(raw_html,
     soup = BeautifulSoup(raw_html, "html5lib")
     ## Init variables
     data = {}
-    # names of html attributes to define event handlers 
-    # extracted from http://help.dottoro.com/larrqqck.php
-    # using scrapy: response.xpath('//tr/td[2]/a/text()').extract()
-    eventHandlersAttr = ['onabort', 'onactivate', 'onafterprint', 
-    'onafterupdate', 'onbeforeactivate', 'onbeforecopy', 'onbeforecut',
-    'onbeforedeactivate', 'onbeforeeditfocus', 'onbeforepaste', 'onbeforeprint',
-    'onbeforeunload', 'onbeforeupdate', 'onblur', 'onbounce', 'oncellchange', 
-    'onchange', 'onclick', 'oncontextmenu', 'oncontrolselect', 'oncopy', 
-    'oncut', 'ondataavailable', 'ondatasetchanged', 'ondatasetcomplete', 
-    'ondblclick', 'ondeactivate', 'ondrag', 'ondragend', 'ondragenter', 
-    'ondragleave', 'ondragover', 'ondragstart', 'ondrop', 'onerror', 
-    'onerrorupdate', 'onfilterchange', 'onfinish', 'onfocus', 'onfocusin', 
-    'onfocusout', 'onhashchange', 'onhelp', 'oninput', 'onkeydown', 
-    'onkeypress', 'onkeyup', 'onload', 'onlosecapture', 'onmessage', 
-    'onmousedown', 'onmouseenter', 'onmouseleave', 'onmousemove', 'onmouseout', 
-    'onmouseover', 'onmouseup', 'onmousewheel', 'onmove', 'onmoveend', 
-    'onmovestart', 'onoffline', 'ononline', 'onpaste', 'onpropertychange', 
-    'onreadystatechange', 'onreset', 'onresize', 'onresizeend', 'onresizestart',
-    'onrowenter', 'onrowexit', 'onrowsdelete', 'onrowsinserted', 'onscroll', 
-    'onsearch', 'onselect', 'onselectionchange', 'onselectstart', 'onstart', 
-    'onstop', 'onsubmit', 'onunload']
 
     for tag in tags:
         data['html_tag_' + tag] = 0
@@ -195,6 +210,11 @@ def parse_html(raw_html,
     # Events Handlers
     for event in eventHandlersAttr:
         data['html_event_' + event] = 0
+    # keywords evil
+    data['html_number_keywords_evil'] = 0
+    for keyword in keywords_evil:
+        data['html_number_keywords_evil'] += len(re.findall(keyword, raw_html, 
+            flags=re.IGNORECASE))
     # reference to JS file
     data['js_file'] = bool(soup.find_all('script', src=True))
 
@@ -284,7 +304,9 @@ def parse_html(raw_html,
     data['html_length'] = len(raw_html)
     return data
 
-def parse_url(string):
+def parse_url(string, tags=TAGS, attrs=ATTRS, 
+    eventHandlersAttrs = EVENTHANDLERSATTRS, keywords_param=KEYWORDS_PARAM, 
+    keywords_evil=KEYWORDS_EVIL):
     """
     Parses a URL as str and returns a dict of features for future model uses
     """
@@ -292,13 +314,22 @@ def parse_url(string):
     data = {}
     data['url_length'] = len(string)
     data['url_duplicated_characters'] = ('<<' in string) or ('>>' in string)
-    data['url_special_characters'] = any(i in string for i in '"\'>') 
+    #data['url_special_characters'] = any(i in string for i in '"\'>') 
         # ex: ", ">, "/> 
         # idea to bypass: using `
-    data['url_script_tag'] = bool(re.search(r'<\s*script.*>|<\s*/\s*script\s*>',
-        string, flags=re.IGNORECASE))
+    for tag in tags:
+        data['url_'+tag+'_tag'] = bool(
+            re.search('<\s*'+tag+'.*>|<\s*/\s*'+tag+'\s*>', string, 
+            flags=re.IGNORECASE))
+        # TODO: handle HTML entities?
         # check for whitespace and ignore case
         # checked on https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet
+    for attr in attrs:
+        data['url_'+attr+'_attr'] = bool(re.search(attr+'\s*=', string, 
+            flags=re.IGNORECASE))
+    for event in eventHandlersAttrs:
+        data['url_'+event+'_event'] = bool(re.search(attr+'\s*=', string, 
+            flags=re.IGNORECASE))
     data['url_cookie'] = ('document.cookie' in string)
     data['url_redirection'] = any(i in string for i in ['window.location', 
         'window.history', 'window.navigate', 'document.URL', 
@@ -318,14 +349,8 @@ def parse_url(string):
         #         $(location).prop('href', 'http://www.example.com')
         # https://stackoverflow.com/a/4745012
         # document.location
-    data['url_number_keywords'] = sum(i in string.lower() for i in ['login', 'signup', 
-        'contact', 'search', 'query', 'redirect', # from "Prediction of 
-        #Cross-Site Scriting Attack Using Machine Learning Algoritms"
-        'XSS', 'banking', 'root', 'password', 'crypt', 'shell', 'evil',
-        # from "Automatic Classification of Cross-Site Scripting in Web Pages Using Document-based and URL-based Features"
-        'hack', 'pwd', 'own', 'h4ck', 'h@ck','|-|4(|<'])
-        # from me
-        # TODO: get the full list from previous papers
+    data['url_number_keywords_param'] = sum(i in string.lower() for i in keywords_param)
+    data['url_number_keywords_evil'] = sum(i in string.lower() for i in keywords_evil)
     data['url_number_domain'] = len(re.findall(
         r'(?:(?!-)[A-Za-z0-9-]{1,63}(?!-)\.)+[A-Za-z]{2,6}', string))
         # adapted from: http://www.mkyong.com/regular-expressions/domain-name-regular-expression-example/
