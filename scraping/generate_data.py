@@ -54,7 +54,7 @@ KEYWORDS_PARAM = ['login', 'signup', 'contact', 'search', 'query', 'redirect',
 # keywords frequent on hacked pages. Frequent words in hacker's message
 KEYWORDS_EVIL = ['XSS', 'evil',
     # selected from "Automatic Classification of Cross-Site Scripting in Web Pages Using Document-based and URL-based Features"
-    'hack', 'pwd', 'pown', 'h4ck', 'h@ck','|-|4(|<', 'anonymous', 'control by',
+    'hack', 'pwd', 'pown', 'h4ck', 'h@ck', 'anonymous', 'control by',
     'controled by', 'in control', 'under the control']
     # from me
 
@@ -209,7 +209,7 @@ def parse_html(raw_html,
     for attr in attrs:
         data['html_attr_' + attr] = 0
     # Events Handlers
-    for event in eventHandlersAttr:
+    for event in eventHandlersAttrs:
         data['html_event_' + event] = 0
     # keywords evil
     data['html_number_keywords_evil'] = 0
@@ -266,7 +266,7 @@ def parse_html(raw_html,
     for attr in attrs:
         data['html_attr_' + attr] = len(soup.find_all(attrs={attr: True}))
     ## count event handlers
-    for event in eventHandlersAttr:
+    for event in eventHandlersAttrs:
         event_tags = soup.find_all(attrs={event: True})
         data['html_event_' + event] = len(event_tags)
         # 6. JS executed from EventHandlers
