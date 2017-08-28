@@ -324,17 +324,17 @@ def parse_url(string, tags=TAGS, attrs=ATTRS,
         # ex: ", ">, "/> 
         # idea to bypass: using `
     for tag in tags:
-        data['url_'+tag+'_tag'] = bool(
+        data['url_tag_'+tag] = bool(
             re.search('<\s*'+tag+'.*>|<\s*/\s*'+tag+'\s*>', string, 
             flags=re.IGNORECASE))
         # TODO: handle HTML entities?
         # check for whitespace and ignore case
         # checked on https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet
     for attr in attrs:
-        data['url_'+attr+'_attr'] = bool(re.search(attr+'\s*=', string, 
+        data['url_attr_'+attr] = bool(re.search(attr+'\s*=', string, 
             flags=re.IGNORECASE))
     for event in eventHandlersAttrs:
-        data['url_'+event+'_event'] = bool(re.search(attr+'\s*=', string, 
+        data['url_event_'+event] = bool(re.search(attr+'\s*=', string, 
             flags=re.IGNORECASE))
     data['url_cookie'] = ('document.cookie' in string)
     data['url_redirection'] = any(i in string for i in ['window.location', 
