@@ -319,6 +319,17 @@ run_adversarial_strategy(partytree, data.tree, data.pred.malicious, constraints2
 # number of bypasses:  41 
 # % of bypasses:  12.65432 
 
+# strategy 3
+substitutes <- list()
+#substitutes[['html_event_onerror']] <- substitutes[['html_event_onload']]
+substitutes[['url_script_tag']] <- list(c('url_svg_tag', ''), c('url_svg_tag', ''))
+# TODO: report modification: url_script_tag -> url_tag_script
+
+#in malicious dataset: 'url_script_tag' -1 -> 
+#       html_tag_script -1 & html_event_onerror +1 (& url_tag_img +1 & html_tag_img +1)
+# from <script>PAYLOAD</script> --> <img src=x onerror=PAYLOAD>
+# TODO: add url_tag_img to generate_data?
+
 
 # 10-Fold CV
 # TODO: stratified k-fold cross-validation?
@@ -368,7 +379,7 @@ train_J48_and_find_adv(data.agg, constraints2.agg)
 # % of bypasses:  100 
 
 
-###
+#####
 
 payloads <- read.csv("payloads/attacks.csv")
 
